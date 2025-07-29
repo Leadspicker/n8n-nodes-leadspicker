@@ -71,7 +71,7 @@ export class LeadspickerNode implements INodeType {
 						value: 'autocph',
 					},
 					{
-						name: 'Linkedin Activity',
+						name: 'Linkedin',
 						value: 'linkedinActivity',
 					},
 					{
@@ -227,6 +227,12 @@ export class LeadspickerNode implements INodeType {
 				},
 				options: [
 					{
+						name: 'Get Profile',
+						value: 'getProfile',
+						description: 'Scrapes and returns details for a LinkedIn profile',
+						action: 'Get profile details',
+					},
+					{
 						name: 'Get Posts',
 						value: 'getPosts',
 						description: "Get a profile's latest posts",
@@ -245,7 +251,7 @@ export class LeadspickerNode implements INodeType {
 						action: 'Get post reactors',
 					},
 				],
-				default: 'getPosts',
+				default: 'getProfile',
 			},
 
 			// Project Name field for create operation
@@ -688,7 +694,7 @@ export class LeadspickerNode implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['linkedinActivity'],
-						operation: ['getPosts', 'getActivities'],
+						operation: ['getPosts', 'getActivities', 'getProfile'],
 					},
 				},
 				default: '',
@@ -1111,6 +1117,11 @@ export class LeadspickerNode implements INodeType {
 		const operation = context.getNodeParameter('operation', i) as string;
 
 		switch (operation) {
+			case 'getProfile': {
+				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
+				const body: IDataObject = { linkedin_url: linkedinUrl };
+				return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-profile', body);
+			}
 			case 'getPosts': {
 				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
 				const body: IDataObject = { linkedin_url: linkedinUrl };
@@ -1151,7 +1162,7 @@ export class LeadspickerNode implements INodeType {
 			default:
 				throw new NodeOperationError(
 					context.getNode(),
-					`The operation "${operation}" is not supported for Linkedin Activity resource.`,
+					`The operation "${operation}" is not supported for Linkedin resource.`,
 				);
 		}
 	}
