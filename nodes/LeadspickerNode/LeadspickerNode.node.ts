@@ -11,45 +11,22 @@ import {
 import * as moment from 'moment-timezone';
 import { leadspickerApiRequest, getUserTimezone } from './GenericFunctions';
 
-/**
- * Describes the structure of a single item in the email accounts list.
- */
+// Interfaces remain the same...
 interface IEmailAccountItem {
 	address: string;
 }
-
-/**
- * Describes the structure of the 'email_accounts' filter property.
- * It contains a list of email account items.
- */
 interface IEmailAccountsFilter {
 	email: IEmailAccountItem[];
 }
-
-/**
- * Describes the structure of a single item in the projects list.
- */
 interface IProjectItem {
 	id: number;
 }
-
-/**
- * Describes the structure of the 'projects' filter property.
- */
 interface IProjectsFilter {
 	project: IProjectItem[];
 }
-
-/**
- * Describes the structure of a single item in the sentiment list.
- */
 interface ISentimentItem {
 	type: string;
 }
-
-/**
- * Describes the structure of the 'sentiment' filter property.
- */
 interface ISentimentFilter {
 	sentiment_value: ISentimentItem[];
 }
@@ -90,6 +67,14 @@ export class LeadspickerNode implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
+						name: 'AutoCPH',
+						value: 'autocph',
+					},
+					{
+						name: 'Linkedin Activity',
+						value: 'linkedinActivity',
+					},
+					{
 						name: 'Person',
 						value: 'person',
 					},
@@ -101,11 +86,6 @@ export class LeadspickerNode implements INodeType {
 						name: 'Reply',
 						value: 'reply',
 					},
-					{
-						name: 'AutoCPH',
-						value: 'autocph',
-					},
-					// Future resources can be added here (Project, Campaign, etc.)
 				],
 				default: 'project',
 			},
@@ -232,6 +212,40 @@ export class LeadspickerNode implements INodeType {
 					},
 				],
 				default: 'byCompanyLinkedin',
+			},
+
+			// Linkedin Activity operations
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+					},
+				},
+				options: [
+					{
+						name: 'Get Posts',
+						value: 'getPosts',
+						description: "Get a profile's latest posts",
+						action: 'Get latest posts',
+					},
+					{
+						name: 'Get Activities',
+						value: 'getActivities',
+						description: "Get a profile's recent activities (reactions and comments)",
+						action: 'Get recent activities',
+					},
+					{
+						name: 'Get Post Reactors',
+						value: 'getPostReactors',
+						description: 'Get people who reacted to posts and send to a webhook',
+						action: 'Get post reactors',
+					},
+				],
+				default: 'getPosts',
 			},
 
 			// Project Name field for create operation
@@ -664,7 +678,103 @@ export class LeadspickerNode implements INodeType {
 					},
 				},
 				default: '',
-				description: 'The LinkedIn URL or handle of the company to search for contacts in',
+				description: 'The LinkedIn URL or handle of the company',
+			},
+			{
+				displayName: 'LinkedIn Profile URL',
+				name: 'linkedinUrl',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getPosts', 'getActivities'],
+					},
+				},
+				default: '',
+				description: 'The LinkedIn URL of the personal or company profile',
+			},
+			{
+				displayName: 'Webhook URL',
+				name: 'webhookUrl',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getPostReactors'],
+					},
+				},
+				default: '',
+				description: 'The URL to send the webhook payload to when data is ready',
+			},
+			{
+				displayName: 'Profile URLs',
+				name: 'profileUrls',
+				type: 'fixedCollection',
+				placeholder: 'Add Profile URL',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getPostReactors'],
+					},
+				},
+				description: 'A list of LinkedIn profile URLs to get post reactors from',
+				options: [
+					{
+						name: 'urls',
+						displayName: 'URL',
+						values: [
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								description: 'A LinkedIn profile URL',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Post Reactors Options',
+				name: 'postReactorsOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getPostReactors'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Max Post Age (Days)',
+						name: 'maxPostsAge',
+						type: 'number',
+						default: 90,
+						description: 'The maximum age of posts to consider, in days',
+					},
+					{
+						displayName: 'Max Posts per Profile',
+						name: 'maxPostsPerLink',
+						type: 'number',
+						default: 30,
+						description: 'The maximum number of posts to check per profile URL',
+					},
+					{
+						displayName: 'Max Reactors per Post',
+						name: 'maxReactors',
+						type: 'number',
+						default: 50,
+						description: 'The maximum number of reactors to return per post',
+					},
+				],
 			},
 			{
 				displayName: 'Functions',
@@ -774,7 +884,6 @@ export class LeadspickerNode implements INodeType {
 
 	/**
 	 * Handles operations for the 'Person' resource.
-	 * Note: This is now a static method.
 	 */
 	private static async handlePersonOperations(context: IExecuteFunctions, i: number): Promise<any> {
 		const operation = context.getNodeParameter('operation', i) as string;
@@ -838,7 +947,6 @@ export class LeadspickerNode implements INodeType {
 
 	/**
 	 * Handles operations for the 'Project' resource.
-	 * Note: This is now a static method.
 	 */
 	private static async handleProjectOperations(
 		context: IExecuteFunctions,
@@ -867,7 +975,6 @@ export class LeadspickerNode implements INodeType {
 
 	/**
 	 * Handles operations for the 'Reply' resource.
-	 * Note: This is now a static method.
 	 */
 	private static async handleReplyOperations(context: IExecuteFunctions, i: number): Promise<any> {
 		const operation = context.getNodeParameter('operation', i) as string;
@@ -918,7 +1025,6 @@ export class LeadspickerNode implements INodeType {
 
 	/**
 	 * Handles operations for the 'AutoCPH' resource.
-	 * Note: This is now a static method.
 	 */
 	private static async handleAutoCphOperations(
 		context: IExecuteFunctions,
@@ -996,6 +1102,61 @@ export class LeadspickerNode implements INodeType {
 	}
 
 	/**
+	 * Handles operations for the 'Linkedin Activity' resource.
+	 */
+	private static async handleLinkedinActivityOperations(
+		context: IExecuteFunctions,
+		i: number,
+	): Promise<any> {
+		const operation = context.getNodeParameter('operation', i) as string;
+
+		switch (operation) {
+			case 'getPosts': {
+				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
+				const body: IDataObject = { linkedin_url: linkedinUrl };
+				return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-posts', body);
+			}
+			case 'getActivities': {
+				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
+				const body: IDataObject = { linkedin_url: linkedinUrl };
+				return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-activities', body);
+			}
+			case 'getPostReactors': {
+				const webhookUrl = context.getNodeParameter('webhookUrl', i) as string;
+				const profileUrls = context.getNodeParameter('profileUrls', i, {}) as {
+					urls?: { url: string }[];
+				};
+				const options = context.getNodeParameter('postReactorsOptions', i, {}) as IDataObject;
+
+				const body: IDataObject = {
+					webhook_url: webhookUrl,
+					max_posts_age: options.maxPostsAge ?? 90,
+					max_posts_per_link: options.maxPostsPerLink ?? 30,
+					max_reactors: options.maxReactors ?? 50,
+				};
+
+				if (profileUrls.urls?.length) {
+					body.urls = profileUrls.urls
+						.map((item) => item.url)
+						.filter((url) => url && url.trim() !== '');
+				}
+
+				return leadspickerApiRequest.call(
+					context,
+					'POST',
+					'/utils/linkedin-profile-posts-reactors',
+					body,
+				);
+			}
+			default:
+				throw new NodeOperationError(
+					context.getNode(),
+					`The operation "${operation}" is not supported for Linkedin Activity resource.`,
+				);
+		}
+	}
+
+	/**
 	 * The main execute method for the node.
 	 */
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -1019,6 +1180,9 @@ export class LeadspickerNode implements INodeType {
 						break;
 					case 'autocph':
 						responseData = await LeadspickerNode.handleAutoCphOperations(this, i);
+						break;
+					case 'linkedinActivity':
+						responseData = await LeadspickerNode.handleLinkedinActivityOperations(this, i);
 						break;
 					default:
 						throw new NodeOperationError(
