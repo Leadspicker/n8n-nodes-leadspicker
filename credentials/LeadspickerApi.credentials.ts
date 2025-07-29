@@ -5,10 +5,10 @@ import {
 	INodeProperties,
 } from 'n8n-workflow';
 
-export class HttpBinApi implements ICredentialType {
-	name = 'httpbinApi';
-	displayName = 'HttpBin API';
-	documentationUrl = 'https://your-docs-url';
+export class LeadspickerApi implements ICredentialType {
+	name = 'leadspickerApi';
+	displayName = 'Leadspicker API';
+	documentationUrl = 'https://app.leadspicker.com/app/sb/api/docs';
 	properties: INodeProperties[] = [
 		{
 			displayName: 'Token',
@@ -23,7 +23,8 @@ export class HttpBinApi implements ICredentialType {
 			displayName: 'Domain',
 			name: 'domain',
 			type: 'string',
-			default: 'https://httpbin.org',
+			default: 'https://app.leadspicker.com',
+			//default: 'http://localhost:8000',
 		},
 	];
 
@@ -35,7 +36,7 @@ export class HttpBinApi implements ICredentialType {
 		type: 'generic',
 		properties: {
 			headers: {
-				Authorization: '={{"Bearer " + $credentials.token}}',
+				"X-API-Key": '={{$credentials.token}}',
 			},
 		},
 	};
@@ -44,7 +45,9 @@ export class HttpBinApi implements ICredentialType {
 	test: ICredentialTestRequest = {
 		request: {
 			baseURL: '={{$credentials?.domain}}',
-			url: '/bearer',
+			//baseURL: 'http://localhost:8000',
+			url: '/app/sb/api/auth/me',
 		},
 	};
 }
+
