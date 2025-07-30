@@ -51,13 +51,6 @@ export class LeadspickerNode implements INodeType {
 				required: true,
 			},
 		],
-		requestDefaults: {
-			baseURL: 'http://localhost:8000/app/sb/api',
-			headers: {
-				Accept: 'application/json',
-				'Content-Type': 'application/json',
-			},
-		},
 		properties: [
 			// Resource Property
 			{

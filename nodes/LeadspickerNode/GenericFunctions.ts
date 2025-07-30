@@ -15,9 +15,8 @@ export async function leadspickerApiRequest(
 	const options: IRequestOptions = {
 		headers: {},
 		method,
-		// TODO don't forget to change this to PRODUCTION URL
-		//url: `https://app.leadspicker.com/app/sb/api${endpoint}`,
-		url: `http://localhost:8000/app/sb/api${endpoint}`,
+		url: `https://app.leadspicker.com/app/sb/api${endpoint}`,
+		//url: `http://localhost:8000/app/sb/api${endpoint}`,
 		body,
 		json: true,
 		qs: query,

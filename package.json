@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-leadspicker",
   "version": "0.1.0",
-  "description": "TBD - Leadspicker's n8n nodes package for integrating with Leadspicker's API.",
+  "description": "Leadspicker's n8n nodes package for integrating with Leadspicker's API.",
   "keywords": [
     "n8n-community-node-package"
   ],

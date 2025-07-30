@@ -45,7 +45,6 @@ export class LeadspickerApi implements ICredentialType {
 	test: ICredentialTestRequest = {
 		request: {
 			baseURL: '={{$credentials?.domain}}',
-			//baseURL: 'http://localhost:8000',
 			url: '/app/sb/api/auth/me',
 		},
 	};
