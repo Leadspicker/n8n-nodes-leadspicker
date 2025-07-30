@@ -7,13 +7,10 @@
   ],
   "license": "MIT",
   "homepage": "https://www.leadspicker.com/",
-  "author": {
-    "name": "Leadspicker",
-    "email": "dev@leadspicker.com"
-  },
+  "author": "Leadspicker <dev@leadspicker.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Leadspicker/n8n-nodes-leadspicker.git"
+    "url": "git+https://github.com/Leadspicker/n8n-nodes-leadspicker.git"
   },
   "engines": {
     "node": ">=20.15"
@@ -52,5 +49,8 @@
   },
   "dependencies": {
     "moment-timezone": "^0.6.0"
+  },
+  "bugs": {
+    "url": "https://github.com/Leadspicker/n8n-nodes-leadspicker/issues"
   }
 }
