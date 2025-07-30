@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-leadspicker",
+  "name": "@leadspicker/n8n-nodes-leadspicker",
   "version": "0.1.0",
   "description": "Leadspicker's n8n nodes package for integrating with Leadspicker's API.",
   "keywords": [
