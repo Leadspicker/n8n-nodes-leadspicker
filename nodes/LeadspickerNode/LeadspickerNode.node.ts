@@ -220,18 +220,6 @@ export class LeadspickerNode implements INodeType {
 				},
 				options: [
 					{
-						name: 'Get Profile',
-						value: 'getProfile',
-						description: 'Scrapes and returns details for a LinkedIn profile',
-						action: 'Get profile details',
-					},
-					{
-						name: 'Get Posts',
-						value: 'getPosts',
-						description: "Get a profile's latest posts",
-						action: 'Get latest posts',
-					},
-					{
 						name: 'Get Activities',
 						value: 'getActivities',
 						description: "Get a profile's recent activities (reactions and comments)",
@@ -242,6 +230,18 @@ export class LeadspickerNode implements INodeType {
 						value: 'getPostReactors',
 						description: 'Get people who reacted to posts and send to a webhook',
 						action: 'Get post reactors',
+					},
+					{
+						name: 'Get Posts',
+						value: 'getPosts',
+						description: "Get a profile's latest posts",
+						action: 'Get latest posts',
+					},
+					{
+						name: 'Get Profile',
+						value: 'getProfile',
+						description: 'Scrapes and returns details for a LinkedIn profile',
+						action: 'Get profile details',
 					},
 					{
 						name: 'Search Post Reactors',

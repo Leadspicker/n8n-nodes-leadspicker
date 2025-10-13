@@ -45,6 +45,8 @@ This node supports the following resources and operations:
   * Get people who reacted to posts and send the results to a webhook
   * Retrieve LinkedIn profiles that reacted to posts returned by a content search URL
 
+Note: The Linkedin Activity operation "Search Post Reactors" auto-paginates through the content search results. It aggregates all pages internally (handling the cursor automatically) and returns a single flat list of reactor profiles.
+
 ## **Credentials**
 
 To use this node, you need to authenticate using your Leadspicker API credentials.
