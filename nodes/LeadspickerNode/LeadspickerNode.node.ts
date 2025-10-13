@@ -5,7 +5,6 @@ import {
 	INodeTypeDescription,
 	NodeOperationError,
 	IDataObject,
-	NodeConnectionType,
 } from 'n8n-workflow';
 
 import * as moment from 'moment-timezone';
@@ -43,8 +42,8 @@ export class LeadspickerNode implements INodeType {
 		defaults: {
 			name: 'Leadspicker Node',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'],
+		outputs: ['main'],
 		credentials: [
 			{
 				name: 'leadspickerApi',
