@@ -243,6 +243,13 @@ export class LeadspickerNode implements INodeType {
 						action: 'Get profile details',
 					},
 					{
+						name: 'Profiles Post Reactors',
+						value: 'profilesPostReactors',
+						description:
+							'Retrieve reactors for posts authored by specific LinkedIn profiles',
+						action: 'Get reactors for profiles',
+					},
+					{
 						name: 'Search Post Reactors',
 						value: 'searchPostReactors',
 						description:
@@ -714,6 +721,38 @@ export class LeadspickerNode implements INodeType {
 				description: 'The LinkedIn content search URL to iterate posts from',
 			},
 			{
+				displayName: 'Profile URLs',
+				name: 'profilesList',
+				type: 'fixedCollection',
+				placeholder: 'Add Profile URL',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['profilesPostReactors'],
+					},
+				},
+				description: 'A list of LinkedIn profile URLs to get reactors from',
+				options: [
+					{
+						name: 'profiles',
+						displayName: 'Profile',
+						values: [
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								description: 'A LinkedIn profile URL',
+							},
+						],
+					},
+				],
+			},
+			{
 				displayName: 'Webhook URL',
 				name: 'webhookUrl',
 				type: 'string',
@@ -804,10 +843,17 @@ export class LeadspickerNode implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['linkedinActivity'],
-						operation: ['searchPostReactors'],
+						operation: ['searchPostReactors', 'profilesPostReactors'],
 					},
 				},
 				options: [
+					{
+						displayName: 'Deduplicate',
+						name: 'deduplicate',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to deduplicate reactors across posts',
+					},
 					{
 						displayName: 'Include Author',
 						name: 'includeAuthor',
@@ -816,25 +862,32 @@ export class LeadspickerNode implements INodeType {
 						description: 'Whether to include the post author in the results',
 					},
 					{
-						displayName: 'Commenters Per Post',
+						displayName: 'Max Age Days',
+						name: 'maxAgeDays',
+						type: 'number',
+						default: 90,
+						description: 'Only consider posts up to this age in days',
+					},
+					{
+						displayName: 'Max Commenters Per Post',
 						name: 'commentersPerPost',
 						type: 'number',
 						default: 0,
 						description: 'Maximum number of commenters to return per post',
 					},
 					{
-						displayName: 'Likers Per Post',
+						displayName: 'Max Likers Per Post',
 						name: 'likersPerPost',
 						type: 'number',
 						default: 0,
 						description: 'Maximum number of likers to return per post',
 					},
 					{
-						displayName: 'Max Age Days',
-						name: 'maxAgeDays',
+						displayName: 'Posts Limit',
+						name: 'postsLimit',
 						type: 'number',
-						default: 90,
-						description: 'Only consider posts up to this age in days',
+						default: 30,
+						description: 'Maximum number of posts to iterate per request',
 					},
 				],
 			},
@@ -1225,6 +1278,8 @@ export class LeadspickerNode implements INodeType {
 					commenters_per_post: (options.commentersPerPost as number) ?? 0,
 					likers_per_post: (options.likersPerPost as number) ?? 0,
 					max_age_days: (options.maxAgeDays as number) ?? 90,
+					posts_limit: (options.postsLimit as number) ?? 30,
+					deduplicate: (options.deduplicate as boolean) ?? false,
 				};
 
 				let cursor: string | null = null;
@@ -1237,6 +1292,48 @@ export class LeadspickerNode implements INodeType {
 						context,
 						'POST',
 						'/utils/linkedin-profile-posts-reactors-search',
+						body,
+					)) as { results?: IDataObject[]; next_cursor?: string | null };
+
+					const chunk = Array.isArray(response?.results) ? (response.results as IDataObject[]) : [];
+					if (!chunk.length) break;
+					results.push(...chunk);
+					cursor = (response?.next_cursor as string | null) ?? null;
+					if (!cursor) break;
+				}
+
+				return results;
+			}
+			case 'profilesPostReactors': {
+				const profilesList = context.getNodeParameter('profilesList', i, {}) as {
+					profiles?: { url: string }[];
+				};
+				const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
+
+				const profiles = (profilesList.profiles || [])
+					.map((p) => p.url)
+					.filter((u) => u && u.trim() !== '');
+
+				const baseBody: IDataObject = {
+					profiles,
+					include_author: (options.includeAuthor as boolean) ?? false,
+					commenters_per_post: (options.commentersPerPost as number) ?? 0,
+					likers_per_post: (options.likersPerPost as number) ?? 0,
+					max_age_days: (options.maxAgeDays as number) ?? 90,
+					posts_limit: (options.postsLimit as number) ?? 30,
+					deduplicate: (options.deduplicate as boolean) ??  false,
+				};
+
+				let cursor: string | null = null;
+				const results: IDataObject[] = [];
+
+				while (true) {
+					const body: IDataObject = { ...baseBody };
+					if (cursor) body.cursor = cursor;
+					const response = (await leadspickerApiRequest.call(
+						context,
+						'POST',
+						'/utils/linkedin-profile-posts-reactors-profiles',
 						body,
 					)) as { results?: IDataObject[]; next_cursor?: string | null };
 

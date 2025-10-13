@@ -44,8 +44,9 @@ This node supports the following resources and operations:
   * Get a profile's recent activities (reactions and comments)  
   * Get people who reacted to posts and send the results to a webhook
   * Retrieve LinkedIn profiles that reacted to posts returned by a content search URL
+  * Retrieve reactors for posts authored by specific LinkedIn profiles
 
-Note: The Linkedin Activity operation "Search Post Reactors" auto-paginates through the content search results. It aggregates all pages internally (handling the cursor automatically) and returns a single flat list of reactor profiles.
+Note: The Linkedin Activity operations "Search Post Reactors" and "Profiles Post Reactors" auto-paginate. They aggregate all pages internally (handling the cursor automatically) and return a single flat list of reactor profiles.
 
 ## **Credentials**
 
