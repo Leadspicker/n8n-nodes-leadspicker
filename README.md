@@ -43,6 +43,7 @@ This node supports the following resources and operations:
   * Get a profile's latest posts  
   * Get a profile's recent activities (reactions and comments)  
   * Get people who reacted to posts and send the results to a webhook
+  * Retrieve LinkedIn profiles that reacted to posts returned by a content search URL
 
 ## **Credentials**
 

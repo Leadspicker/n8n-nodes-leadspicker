@@ -243,6 +243,13 @@ export class LeadspickerNode implements INodeType {
 						description: 'Get people who reacted to posts and send to a webhook',
 						action: 'Get post reactors',
 					},
+					{
+						name: 'Search Post Reactors',
+						value: 'searchPostReactors',
+						description:
+							'Retrieve LinkedIn profiles that reacted to posts returned by a content search URL',
+						action: 'Search post reactors',
+					},
 				],
 				default: 'getProfile',
 			},
@@ -694,6 +701,20 @@ export class LeadspickerNode implements INodeType {
 				description: 'The LinkedIn URL of the personal or company profile',
 			},
 			{
+				displayName: 'Search URL',
+				name: 'searchUrl',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['searchPostReactors'],
+					},
+				},
+				default: '',
+				description: 'The LinkedIn content search URL to iterate posts from',
+			},
+			{
 				displayName: 'Webhook URL',
 				name: 'webhookUrl',
 				type: 'string',
@@ -772,6 +793,49 @@ export class LeadspickerNode implements INodeType {
 						type: 'number',
 						default: 50,
 						description: 'The maximum number of reactors to return per post',
+					},
+				],
+			},
+			{
+				displayName: 'Reactors Search Options',
+				name: 'reactorsSearchOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['searchPostReactors'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Include Author',
+						name: 'includeAuthor',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include the post author in the results',
+					},
+					{
+						displayName: 'Commenters Per Post',
+						name: 'commentersPerPost',
+						type: 'number',
+						default: 0,
+						description: 'Maximum number of commenters to return per post',
+					},
+					{
+						displayName: 'Likers Per Post',
+						name: 'likersPerPost',
+						type: 'number',
+						default: 0,
+						description: 'Maximum number of likers to return per post',
+					},
+					{
+						displayName: 'Max Age Days',
+						name: 'maxAgeDays',
+						type: 'number',
+						default: 90,
+						description: 'Only consider posts up to this age in days',
 					},
 				],
 			},
@@ -1151,6 +1215,40 @@ export class LeadspickerNode implements INodeType {
 					'/utils/linkedin-profile-posts-reactors',
 					body,
 				);
+			}
+			case 'searchPostReactors': {
+				const searchUrl = context.getNodeParameter('searchUrl', i) as string;
+				const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
+
+				const baseBody: IDataObject = {
+					search_url: searchUrl,
+					include_author: (options.includeAuthor as boolean) ?? false,
+					commenters_per_post: (options.commentersPerPost as number) ?? 0,
+					likers_per_post: (options.likersPerPost as number) ?? 0,
+					max_age_days: (options.maxAgeDays as number) ?? 90,
+				};
+
+				let cursor: string | null = null;
+				const results: IDataObject[] = [];
+
+				while (true) {
+					const body: IDataObject = { ...baseBody };
+					if (cursor) body.cursor = cursor;
+					const response = (await leadspickerApiRequest.call(
+						context,
+						'POST',
+						'/utils/linkedin-profile-posts-reactors-search',
+						body,
+					)) as { results?: IDataObject[]; next_cursor?: string | null };
+
+					const chunk = Array.isArray(response?.results) ? (response.results as IDataObject[]) : [];
+					if (!chunk.length) break;
+					results.push(...chunk);
+					cursor = (response?.next_cursor as string | null) ?? null;
+					if (!cursor) break;
+				}
+
+				return results;
 			}
 			default:
 				throw new NodeOperationError(
