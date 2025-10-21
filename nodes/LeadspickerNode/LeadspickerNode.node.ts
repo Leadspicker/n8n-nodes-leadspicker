@@ -1285,7 +1285,7 @@ export class LeadspickerNode implements INodeType {
 				let cursor: string | null = null;
 				const results: IDataObject[] = [];
 
-				while (true) {
+				for (let iter = 0; iter < 1000; iter++) {
 					const body: IDataObject = { ...baseBody };
 					if (cursor) body.cursor = cursor;
 					const response = (await leadspickerApiRequest.call(
@@ -1327,7 +1327,7 @@ export class LeadspickerNode implements INodeType {
 				let cursor: string | null = null;
 				const results: IDataObject[] = [];
 
-				while (true) {
+				for (let iter = 0; iter < 1000; iter++) {
 					const body: IDataObject = { ...baseBody };
 					if (cursor) body.cursor = cursor;
 					const response = (await leadspickerApiRequest.call(
