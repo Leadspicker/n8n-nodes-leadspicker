@@ -3,6 +3,7 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	NodeConnectionType,
 	NodeOperationError,
 	IDataObject,
 } from 'n8n-workflow';
@@ -42,8 +43,8 @@ export class LeadspickerNode implements INodeType {
 		defaults: {
 			name: 'Leadspicker Node',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'leadspickerApi',
