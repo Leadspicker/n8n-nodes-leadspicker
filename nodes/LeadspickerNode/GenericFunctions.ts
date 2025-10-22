@@ -22,10 +22,6 @@ function logToConsole(message: string, payload: Record<string, unknown>) {
 	consoleLogger.log(message, payload);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null;
-}
-
 function toNumber(headerValue: string | string[] | undefined) {
 	if (Array.isArray(headerValue)) {
 		return toNumber(headerValue[0]);
@@ -69,18 +65,11 @@ function sleep(ms: number) {
 }
 
 function getStatusCode(error: unknown) {
-	if (!isRecord(error)) {
-		return undefined;
-	}
-	const { httpCode, statusCode, response } = error;
-	if (typeof httpCode === 'number') {
-		return httpCode;
-	}
-	if (typeof statusCode === 'number') {
-		return statusCode;
-	}
-	if (isRecord(response) && typeof response.statusCode === 'number') {
-		return response.statusCode;
+	if (typeof error === 'object' && error !== null && 'httpCode' in error) {
+		const { httpCode } = error as { httpCode?: unknown };
+		if (typeof httpCode === 'string') {
+			return httpCode;
+		}
 	}
 	return undefined;
 }
@@ -97,6 +86,7 @@ export async function leadspickerApiRequest(
 		method,
 		url: `https://app.leadspicker.com/app/sb/api${endpoint}`,
 		//url: `http://localhost:8000/app/sb/api${endpoint}`,
+		//url: `http://host.docker.internal:8000/app/sb/api${endpoint}`,
 		body,
 		json: true,
 		qs: query,
@@ -125,7 +115,7 @@ export async function leadspickerApiRequest(
 			return response.body;
 		} catch (error) {
 			const statusCode = getStatusCode(error);
-			if (statusCode === 429 && attempt < MAX_RETRIES - 1) {
+			if (statusCode === "429" && attempt < MAX_RETRIES - 1) {
 				logToConsole('Leadspicker retry scheduled after rate limit response', {
 					attempt: attempt + 1,
 					delayMs: RETRY_DELAY_MS,
