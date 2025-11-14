@@ -24,20 +24,19 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 This node supports the following resources and operations:
 
-* **Person**  
-  * Create a new person in a project  
-  * Delete a person  
-  * Get a person by ID  
-  * List persons in a project  
-  * Update an existing person  
-* **Project**  
-  * Create a new project  
-  * Delete a project  
+* **Lead**  
+  * Create a new lead in a campaign  
+  * Delete a lead  
+  * Get a lead by ID  
+  * List leads in a campaign  
+  * Update an existing lead  
+  * Find leads by a company's LinkedIn URL  
+  * Find leads by a company's name  
+* **Campaign**  
+  * Create a new campaign  
+  * Delete a campaign  
 * **Reply**  
-  * Get replies based on filters (email accounts, projects, sentiment)  
-* **AutoCPH** (Automated Contact Person Hunting)  
-  * Find contacts by a company's LinkedIn URL  
-  * Find contacts by a company's name  
+  * Get replies based on filters (email accounts, campaigns, sentiment)  
 * **Linkedin Activity**  
   * Get a LinkedIn profile's details  
   * Get a profile's latest posts  

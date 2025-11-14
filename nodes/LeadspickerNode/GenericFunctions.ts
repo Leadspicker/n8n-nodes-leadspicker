@@ -2,6 +2,7 @@ import type {
 	IExecuteFunctions,
 	IDataObject,
 	IHttpRequestMethods,
+	ILoadOptionsFunctions,
 	IRequestOptions,
 } from 'n8n-workflow';
 
@@ -75,7 +76,7 @@ function getStatusCode(error: unknown) {
 }
 
 export async function leadspickerApiRequest(
-	this: IExecuteFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},

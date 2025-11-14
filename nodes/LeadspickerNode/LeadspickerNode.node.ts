@@ -23,12 +23,12 @@ interface IEmailAccountItem {
 interface IEmailAccountsFilter {
 	email: IEmailAccountItem[];
 }
-interface IProjectItem {
+interface ICampaignItem {
 	id: number | string;
 	idManual?: number;
 }
-interface IProjectsFilter {
-	project: IProjectItem[];
+interface ICampaignsFilter {
+	project: ICampaignItem[];
 }
 interface ISentimentItem {
 	type: string;
@@ -92,7 +92,7 @@ export class LeadspickerNode implements INodeType {
 		return LeadspickerNode.toNumericId(selection);
 	}
 
-	private static getProjectIdForPersonOptions(context: ILoadOptionsFunctions): number | undefined {
+	private static getCampaignIdForLeadOptions(context: ILoadOptionsFunctions): number | undefined {
 		const params = (context.getCurrentNodeParameters?.() ?? {}) as IDataObject;
 		return (
 			LeadspickerNode.tryGetIdFromParameters(params, 'personLookupProjectId', 'personLookupProjectIdManual') ??
@@ -102,7 +102,7 @@ export class LeadspickerNode implements INodeType {
 
 	methods = {
 		loadOptions: {
-			async getProjects(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+			async getCampaigns(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const query: IDataObject = { limit: 50 };
 				const response = await leadspickerApiRequest.call(this, 'GET', '/projects', {}, query);
 				const list = Array.isArray(response)
@@ -111,18 +111,18 @@ export class LeadspickerNode implements INodeType {
 							? ((response as IDataObject).results as IDataObject[])
 							: []);
 				const options: INodePropertyOptions[] = [];
-				for (const project of list) {
-					const id = LeadspickerNode.toNumericId(project?.id as NodeParameterValueType);
+				for (const campaign of list) {
+					const id = LeadspickerNode.toNumericId(campaign?.id as NodeParameterValueType);
 					if (id === undefined) continue;
-					const name = typeof project?.name === 'string' && project.name.trim() !== ''
-						? project.name.trim()
-						: `Project #${id}`;
+					const name = typeof campaign?.name === 'string' && campaign.name.trim() !== ''
+						? campaign.name.trim()
+						: `Campaign #${id}`;
 					options.push({ name, value: id.toString() });
 				}
 				return options;
 			},
-			async getPersons(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const projectId = LeadspickerNode.getProjectIdForPersonOptions(this);
+			async getLeads(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const projectId = LeadspickerNode.getCampaignIdForLeadOptions(this);
 				if (projectId === undefined) {
 					return [];
 				}
@@ -143,25 +143,25 @@ export class LeadspickerNode implements INodeType {
 							? (response as IDataObject[])
 							: [];
 				const options: INodePropertyOptions[] = [];
-				for (const person of list) {
-					const id = LeadspickerNode.toNumericId(person?.id as NodeParameterValueType);
+				for (const lead of list) {
+					const id = LeadspickerNode.toNumericId(lead?.id as NodeParameterValueType);
 					if (id === undefined) continue;
-					const personData = (person?.person_data ?? {}) as IDataObject;
-					const firstName = [personData.first_name, person?.first_name]
+					const leadData = (lead?.person_data ?? {}) as IDataObject;
+					const firstName = [leadData.first_name, lead?.first_name]
 						.find((name) => typeof name === 'string' && name.trim() !== '') as string | undefined;
-					const lastName = [personData.last_name, person?.last_name]
+					const lastName = [leadData.last_name, lead?.last_name]
 						.find((name) => typeof name === 'string' && name.trim() !== '') as string | undefined;
 					const fullName =
-						typeof personData.full_name === 'string' && personData.full_name.trim() !== ''
-							? personData.full_name.trim()
+						typeof leadData.full_name === 'string' && leadData.full_name.trim() !== ''
+							? leadData.full_name.trim()
 							: [firstName, lastName]
 								.filter((val) => typeof val === 'string')
 								.map((val) => (val as string).trim())
 								.filter((val) => val !== '')
 								.join(' ');
-					const emailCandidate = [personData.email, person?.email]
+					const emailCandidate = [leadData.email, lead?.email]
 						.find((addr) => typeof addr === 'string' && addr.trim() !== '') as string | undefined;
-					const name = fullName || emailCandidate || `Person #${id}`;
+					const name = fullName || emailCandidate || `Lead #${id}`;
 					options.push({ name, value: id.toString() });
 				}
 				return options;
@@ -175,7 +175,8 @@ export class LeadspickerNode implements INodeType {
 		icon: 'file:logo_leadspicker.svg',
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
+		subtitle:
+			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
 		defaults: {
 			name: 'Leadspicker Node',
@@ -197,20 +198,16 @@ export class LeadspickerNode implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'AutoCPH',
-						value: 'autocph',
+						name: 'Campaign',
+						value: 'project',
+					},
+					{
+						name: 'Lead',
+						value: 'person',
 					},
 					{
 						name: 'Linkedin',
 						value: 'linkedinActivity',
-					},
-					{
-						name: 'Person',
-						value: 'person',
-					},
-					{
-						name: 'Project',
-						value: 'project',
 					},
 					{
 						name: 'Reply',
@@ -220,7 +217,7 @@ export class LeadspickerNode implements INodeType {
 				default: 'project',
 			},
 
-			// Person Operations
+			// Lead Operations
 			{
 				displayName: 'Operation',
 				name: 'operation',
@@ -233,40 +230,52 @@ export class LeadspickerNode implements INodeType {
 				},
 				options: [
 					{
-						name: 'Create Person',
+						name: 'Create Lead',
 						value: 'create',
-						description: 'Create a new person in a project',
-						action: 'Create a person',
+						description: 'Create a new lead in a campaign',
+						action: 'Create a lead',
 					},
 					{
-						name: 'Delete Person',
+						name: 'Delete Lead',
 						value: 'delete',
-						description: 'Delete a person',
-						action: 'Delete a person',
+						description: 'Delete a lead',
+						action: 'Delete a lead',
 					},
 					{
-						name: 'Get Person',
+						name: 'Find by Company Linkedin',
+						value: 'byCompanyLinkedin',
+						description: 'Find leads by a company LinkedIn URL',
+							action: 'Find leads by company profile',
+					},
+					{
+						name: 'Find by Company Name',
+						value: 'byCompanyName',
+						description: 'Find leads by a company name',
+						action: 'Find leads by company name',
+					},
+					{
+						name: 'Get Lead',
 						value: 'get',
-						description: 'Get a person by ID',
-						action: 'Get a person',
+						description: 'Get a lead by ID',
+						action: 'Get a lead',
 					},
 					{
-						name: 'List Persons',
+						name: 'List Leads',
 						value: 'list',
-						description: 'List persons in a project',
-						action: 'List persons',
+						description: 'List leads in a campaign',
+						action: 'List leads',
 					},
 					{
-						name: 'Update Person',
+						name: 'Update Lead',
 						value: 'update',
-						description: 'Update an existing person',
-						action: 'Update a person',
+						description: 'Update an existing lead',
+						action: 'Update a lead',
 					},
 				],
 				default: 'create',
 			},
 
-			// Project Operations
+			// Campaign Operations
 			{
 				displayName: 'Operation',
 				name: 'operation',
@@ -279,16 +288,16 @@ export class LeadspickerNode implements INodeType {
 				},
 				options: [
 					{
-						name: 'Create Project',
+						name: 'Create Campaign',
 						value: 'create',
-						description: 'Create a new project',
-						action: 'Create a project',
+						description: 'Create a new campaign',
+						action: 'Create a campaign',
 					},
 					{
-						name: 'Delete Project',
+						name: 'Delete Campaign',
 						value: 'delete',
-						description: 'Delete a project',
-						action: 'Delete a project',
+						description: 'Delete a campaign',
+						action: 'Delete a campaign',
 					},
 				],
 				default: 'create',
@@ -309,39 +318,11 @@ export class LeadspickerNode implements INodeType {
 					{
 						name: 'Get Replies',
 						value: 'list',
-						description: 'Get replies for a person',
+						description: 'Get replies for a lead',
 						action: 'Get replies',
 					},
 				],
 				default: 'list',
-			},
-
-			// AutoCPH operations
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['autocph'],
-					},
-				},
-				options: [
-					{
-						name: 'By Company Linkedin',
-						value: 'byCompanyLinkedin',
-						description: 'Automatically get person by company linkedin',
-						action: 'Get person by company linkedin',
-					},
-					{
-						name: 'By Company Name',
-						value: 'byCompanyName',
-						description: 'Automatically get person by company name',
-						action: 'Get person by company name',
-					},
-				],
-				default: 'byCompanyLinkedin',
 			},
 
 			// Linkedin Activity operations
@@ -398,9 +379,9 @@ export class LeadspickerNode implements INodeType {
 				default: 'getProfile',
 			},
 
-			// Project Name field for create operation
+			// Campaign Name field for create operation
 			{
-				displayName: 'Project Name',
+				displayName: 'Campaign Name',
 				name: 'projectName',
 				type: 'string',
 				required: true,
@@ -411,11 +392,11 @@ export class LeadspickerNode implements INodeType {
 					},
 				},
 				default: '',
-				description: 'Name of the project to create',
+				description: 'Name of the campaign to create',
 			},
 
 			{
-				displayName: 'Project Timezone',
+				displayName: 'Campaign Timezone',
 				name: 'projectTimezone',
 				type: 'options',
 				// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
@@ -426,7 +407,7 @@ export class LeadspickerNode implements INodeType {
 					name: timezone,
 					value: timezone,
 				})),
-				description: 'Timezone of the project',
+				description: 'Timezone of the campaign',
 				displayOptions: {
 					show: {
 						resource: ['project'],
@@ -435,9 +416,9 @@ export class LeadspickerNode implements INodeType {
 				},
 			},
 
-			// Project selector for delete operation
+			// Campaign selector for delete operation
 			{
-				displayName: 'Project Name or ID',
+				displayName: 'Campaign Name or ID',
 				name: 'projectDeleteId',
 				type: 'options',
 				required: true,
@@ -449,17 +430,17 @@ export class LeadspickerNode implements INodeType {
 				},
 				default: '',
 				typeOptions: {
-					loadOptionsMethod: 'getProjects',
+					loadOptionsMethod: 'getCampaigns',
 				},
 				options: [
-					{ name: 'Select a project...', value: '' },
-					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+					{ name: 'Select a campaign...', value: '' },
+					{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
 				],
 				description:
 					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
-				displayName: 'Project ID',
+				displayName: 'Campaign ID',
 				name: 'projectDeleteIdManual',
 				type: 'number',
 				required: true,
@@ -471,12 +452,12 @@ export class LeadspickerNode implements INodeType {
 					},
 				},
 				default: 0,
-				description: 'ID of the project to delete',
+				description: 'ID of the campaign to delete',
 			},
 
-			// Create Person fields
+			// Create Lead fields
 			{
-				displayName: 'Project Name or ID',
+				displayName: 'Campaign Name or ID',
 				name: 'projectId',
 				type: 'options',
 				required: true,
@@ -488,17 +469,17 @@ export class LeadspickerNode implements INodeType {
 				},
 				default: '',
 				options: [
-					{ name: 'Select a project...', value: '' },
-					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+					{ name: 'Select a campaign...', value: '' },
+					{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
 				],
 				typeOptions: {
-					loadOptionsMethod: 'getProjects',
+					loadOptionsMethod: 'getCampaigns',
 				},
 				description:
 					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
-				displayName: 'Project ID',
+				displayName: 'Campaign ID',
 				name: 'projectIdManual',
 				type: 'number',
 				required: true,
@@ -510,7 +491,7 @@ export class LeadspickerNode implements INodeType {
 					},
 				},
 				default: 0,
-				description: 'ID of the project that contains the person records',
+				description: 'ID of the campaign that contains the lead records',
 			},
 			{
 				displayName: 'Page',
@@ -539,9 +520,9 @@ export class LeadspickerNode implements INodeType {
 				description: 'Number of results to return per page',
 			},
 
-			// Person lookup project for option list
+			// Lead lookup campaign for option list
 			{
-				displayName: 'Person Lookup Project Name or ID',
+				displayName: 'Lead Lookup Campaign Name or ID',
 				name: 'personLookupProjectId',
 				type: 'options',
 				displayOptions: {
@@ -553,17 +534,17 @@ export class LeadspickerNode implements INodeType {
 				// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
 				default: '',
 				options: [
-					{ name: 'Select a project...', value: '' },
-					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+					{ name: 'Select a campaign...', value: '' },
+					{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
 				],
 				typeOptions: {
-					loadOptionsMethod: 'getProjects',
+					loadOptionsMethod: 'getCampaigns',
 				},
 					description:
 						'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
-				displayName: 'Person Lookup Project ID',
+				displayName: 'Lead Lookup Campaign ID',
 				name: 'personLookupProjectIdManual',
 				type: 'number',
 				required: true,
@@ -575,12 +556,12 @@ export class LeadspickerNode implements INodeType {
 					},
 				},
 				default: 0,
-				description: 'Project ID to load people from when entering manually',
+				description: 'Campaign ID to load leads from when entering manually',
 			},
 
-			// Person ID field for get, update, delete operations
+			// Lead ID field for get, update, delete operations
 			{
-				displayName: 'Person Name or ID',
+				displayName: 'Lead Name or ID',
 				name: 'personId',
 				type: 'options',
 				required: true,
@@ -592,11 +573,11 @@ export class LeadspickerNode implements INodeType {
 				},
 				default: '',
 				options: [
-					{ name: 'Select a person...', value: '' },
-					{ name: 'Enter Person ID manually...', value: MANUAL_ID_OPTION },
+					{ name: 'Select a lead...', value: '' },
+					{ name: 'Enter Lead ID manually...', value: MANUAL_ID_OPTION },
 				],
 				typeOptions: {
-					loadOptionsMethod: 'getPersons',
+					loadOptionsMethod: 'getLeads',
 					loadOptionsDependsOn: [
 						'personLookupProjectId',
 						'personLookupProjectIdManual',
@@ -608,7 +589,7 @@ export class LeadspickerNode implements INodeType {
 					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
-				displayName: 'Person ID',
+				displayName: 'Lead ID',
 				name: 'personIdManual',
 				type: 'number',
 				required: true,
@@ -620,15 +601,15 @@ export class LeadspickerNode implements INodeType {
 					},
 				},
 				default: 0,
-				description: 'ID of the person',
+				description: 'ID of the lead',
 			},
 
-			// Person Details Section
+			// Lead Details Section
 			{
-				displayName: 'Person Details',
+				displayName: 'Lead Details',
 				name: 'personDetails',
 				type: 'collection',
-				placeholder: 'Add Person Detail',
+				placeholder: 'Add Lead Detail',
 				default: {},
 				displayOptions: {
 					show: {
@@ -642,7 +623,7 @@ export class LeadspickerNode implements INodeType {
 						name: 'country',
 						type: 'string',
 						default: '',
-						description: 'Country of the person',
+						description: 'Country of the lead',
 					},
 					{
 						displayName: 'Email',
@@ -650,28 +631,28 @@ export class LeadspickerNode implements INodeType {
 						type: 'string',
 						placeholder: 'name@email.com',
 						default: '',
-						description: 'Email address of the person',
+						description: 'Email address of the lead',
 					},
 					{
 						displayName: 'First Name',
 						name: 'first_name',
 						type: 'string',
 						default: '',
-						description: 'First name of the person',
+						description: 'First name of the lead',
 					},
 					{
 						displayName: 'Last Name',
 						name: 'last_name',
 						type: 'string',
 						default: '',
-						description: 'Last name of the person',
+						description: 'Last name of the lead',
 					},
 					{
 						displayName: 'Position',
 						name: 'position',
 						type: 'string',
 						default: '',
-						description: 'Job position/title of the person',
+						description: 'Job position/title of the lead',
 					},
 				],
 			},
@@ -695,7 +676,7 @@ export class LeadspickerNode implements INodeType {
 						name: 'company_name',
 						type: 'string',
 						default: '',
-						description: 'Company name where the person works',
+						description: 'Company name where the lead works',
 					},
 					{
 						displayName: 'Company Website',
@@ -733,7 +714,7 @@ export class LeadspickerNode implements INodeType {
 						name: 'linkedin',
 						type: 'string',
 						default: '',
-						description: 'Personal LinkedIn URL',
+						description: 'Lead LinkedIn URL',
 					},
 					{
 						displayName: 'Sales Navigator',
@@ -827,37 +808,37 @@ export class LeadspickerNode implements INodeType {
 						],
 					},
 					{
-						displayName: 'Projects',
+						displayName: 'Campaigns',
 						name: 'projects',
 						type: 'fixedCollection',
-						placeholder: 'Add Project',
+						placeholder: 'Add Campaign',
 						typeOptions: {
 							multipleValues: true,
 						},
 						default: {},
-						description: 'Project IDs to filter by',
+						description: 'Campaign IDs to filter by',
 						options: [
 							{
-								displayName: 'Project',
+								displayName: 'Campaign',
 								name: 'project',
 								values: [
 									{
-										displayName: 'Project Name or ID',
+										displayName: 'Campaign Name or ID',
 										name: 'id',
 										type: 'options',
 										default: '',
 										options: [
-											{ name: 'Select a project...', value: '' },
-											{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+											{ name: 'Select a campaign...', value: '' },
+											{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
 										],
 										typeOptions: {
-											loadOptionsMethod: 'getProjects',
+											loadOptionsMethod: 'getCampaigns',
 										},
 										description:
 											'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 									},
 									{
-										displayName: 'Project ID',
+										displayName: 'Campaign ID',
 										name: 'idManual',
 										type: 'number',
 										required: true,
@@ -867,7 +848,7 @@ export class LeadspickerNode implements INodeType {
 											},
 										},
 											default: 0,
-											description: 'Project ID to filter by',
+											description: 'Campaign ID to filter by',
 										},
 								],
 							},
@@ -931,7 +912,7 @@ export class LeadspickerNode implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						resource: ['autocph'],
+						resource: ['person'],
 						operation: ['byCompanyName'],
 					},
 				},
@@ -944,7 +925,7 @@ export class LeadspickerNode implements INodeType {
 				type: 'string',
 				displayOptions: {
 					show: {
-						resource: ['autocph'],
+						resource: ['person'],
 						operation: ['byCompanyName'],
 					},
 				},
@@ -958,7 +939,7 @@ export class LeadspickerNode implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						resource: ['autocph'],
+						resource: ['person'],
 						operation: ['byCompanyLinkedin'],
 					},
 				},
@@ -1174,7 +1155,7 @@ export class LeadspickerNode implements INodeType {
 				placeholder: 'Add Function',
 				displayOptions: {
 					show: {
-						resource: ['autocph'],
+						resource: ['person'],
 						operation: ['byCompanyLinkedin', 'byCompanyName'],
 					},
 				},
@@ -1205,12 +1186,12 @@ export class LeadspickerNode implements INodeType {
 				},
 				displayOptions: {
 					show: {
-						resource: ['autocph'],
+						resource: ['person'],
 						operation: ['byCompanyLinkedin', 'byCompanyName'],
 					},
 				},
 				default: 2,
-				description: 'The maximum number of persons to return',
+				description: 'The maximum number of leads to return',
 			},
 			{
 				displayName: 'Enrich with Emails',
@@ -1218,7 +1199,7 @@ export class LeadspickerNode implements INodeType {
 				type: 'boolean',
 				displayOptions: {
 					show: {
-						resource: ['autocph'],
+						resource: ['person'],
 						operation: ['byCompanyLinkedin', 'byCompanyName'],
 					},
 				},
@@ -1233,7 +1214,7 @@ export class LeadspickerNode implements INodeType {
 				default: {},
 				displayOptions: {
 					show: {
-						resource: ['autocph'],
+						resource: ['person'],
 						operation: ['byCompanyLinkedin'],
 					},
 				},
@@ -1244,7 +1225,7 @@ export class LeadspickerNode implements INodeType {
 						type: 'boolean',
 						default: true,
 						description:
-							'Whether to perform a live check to verify if the person currently works at the company (as data could be stale)',
+							'Whether to perform a live check to verify if the lead currently works at the company (as data could be stale)',
 					},
 					{
 						displayName: 'Use Embeddings Similarity',
@@ -1252,7 +1233,7 @@ export class LeadspickerNode implements INodeType {
 						type: 'boolean',
 						default: true,
 						description:
-							"Whether to use embeddings similarity to compare provided functions with the persons' positions. Defaults to true.",
+							"Whether to use embeddings similarity to compare provided functions with the leads' positions. Defaults to true.",
 					},
 					{
 						displayName: 'Embeddings Distance Threshold',
@@ -1271,14 +1252,14 @@ export class LeadspickerNode implements INodeType {
 	};
 
 	/**
-	 * Handles operations for the 'Person' resource.
+	 * Handles operations for the 'Lead' resource.
 	 */
-	private static async handlePersonOperations(context: IExecuteFunctions, i: number): Promise<any> {
+	private static async handleLeadOperations(context: IExecuteFunctions, i: number): Promise<any> {
 		const operation = context.getNodeParameter('operation', i) as string;
 
 		switch (operation) {
 			case 'list': {
-				const projectId = LeadspickerNode.getIdFromOptionOrManual(
+				const campaignId = LeadspickerNode.getIdFromOptionOrManual(
 					context,
 					'projectId',
 					'projectIdManual',
@@ -1287,18 +1268,18 @@ export class LeadspickerNode implements INodeType {
 				);
 				const page = context.getNodeParameter('page', i, 1) as number;
 				const pageSize = context.getNodeParameter('pageSize', i) as number;
-				const qs: IDataObject = { project_id: projectId, page_size: pageSize, page: page };
+				const qs: IDataObject = { project_id: campaignId, page_size: pageSize, page: page };
 				return leadspickerApiRequest.call(context, 'GET', `/persons-simple`, {}, qs);
 			}
 			case 'create':
 			case 'update': {
-				const personDetails = context.getNodeParameter('personDetails', i) as IDataObject;
+				const leadDetails = context.getNodeParameter('personDetails', i) as IDataObject;
 				const companyDetails = context.getNodeParameter('companyDetails', i) as IDataObject;
 				const socialProfiles = context.getNodeParameter('socialProfiles', i) as IDataObject;
 				const customFields = context.getNodeParameter('customFields', i) as IDataObject;
 				const body: IDataObject = {
 					data_source: 'user_provided',
-					...personDetails,
+					...leadDetails,
 					...companyDetails,
 					...socialProfiles,
 				};
@@ -1325,48 +1306,52 @@ export class LeadspickerNode implements INodeType {
 					);
 					return leadspickerApiRequest.call(context, 'POST', '/persons', body);
 				} else {
-					const personId = LeadspickerNode.getIdFromOptionOrManual(
+					const leadId = LeadspickerNode.getIdFromOptionOrManual(
 						context,
 						'personId',
 						'personIdManual',
 						'person',
 						i,
 					);
-					return leadspickerApiRequest.call(context, 'PATCH', `/persons/${personId}`, body);
+					return leadspickerApiRequest.call(context, 'PATCH', `/persons/${leadId}`, body);
 				}
 			}
+			case 'byCompanyLinkedin':
+			case 'byCompanyName': {
+				return LeadspickerNode.handleLeadFinderOperations(context, i);
+			}
 			case 'get': {
-				const personId = LeadspickerNode.getIdFromOptionOrManual(
+				const leadId = LeadspickerNode.getIdFromOptionOrManual(
 					context,
 					'personId',
 					'personIdManual',
 					'person',
 					i,
 				);
-				return leadspickerApiRequest.call(context, 'GET', `/persons-simple/${personId}`);
+				return leadspickerApiRequest.call(context, 'GET', `/persons-simple/${leadId}`);
 			}
 			case 'delete': {
-				const personId = LeadspickerNode.getIdFromOptionOrManual(
+				const leadId = LeadspickerNode.getIdFromOptionOrManual(
 					context,
 					'personId',
 					'personIdManual',
 					'person',
 					i,
 				);
-				return leadspickerApiRequest.call(context, 'DELETE', `/persons/${personId}`);
+				return leadspickerApiRequest.call(context, 'DELETE', `/persons/${leadId}`);
 			}
 			default:
 				throw new NodeOperationError(
 					context.getNode(),
-					`The operation "${operation}" is not supported for Person resource.`,
+					`The operation "${operation}" is not supported for Lead resource.`,
 				);
 		}
 	}
 
 	/**
-	 * Handles operations for the 'Project' resource.
+	 * Handles operations for the 'Campaign' resource.
 	 */
-	private static async handleProjectOperations(
+	private static async handleCampaignOperations(
 		context: IExecuteFunctions,
 		i: number,
 	): Promise<any> {
@@ -1374,25 +1359,25 @@ export class LeadspickerNode implements INodeType {
 
 		switch (operation) {
 			case 'create': {
-				const projectName = context.getNodeParameter('projectName', i) as string;
-				const projectTimezone = context.getNodeParameter('projectTimezone', i) as string;
-				const body: IDataObject = { name: projectName, timezone: projectTimezone };
+				const campaignName = context.getNodeParameter('projectName', i) as string;
+				const campaignTimezone = context.getNodeParameter('projectTimezone', i) as string;
+				const body: IDataObject = { name: campaignName, timezone: campaignTimezone };
 				return leadspickerApiRequest.call(context, 'POST', '/projects', body);
 			}
 			case 'delete': {
-				const projectId = LeadspickerNode.getIdFromOptionOrManual(
+				const campaignId = LeadspickerNode.getIdFromOptionOrManual(
 					context,
 					'projectDeleteId',
 					'projectDeleteIdManual',
 					'project',
 					i,
 				);
-				return leadspickerApiRequest.call(context, 'DELETE', `/projects/${projectId}`);
+				return leadspickerApiRequest.call(context, 'DELETE', `/projects/${campaignId}`);
 			}
 			default:
 				throw new NodeOperationError(
 					context.getNode(),
-					`The operation "${operation}" is not supported for Project resource.`,
+					`The operation "${operation}" is not supported for Campaign resource.`,
 				);
 		}
 	}
@@ -1417,9 +1402,9 @@ export class LeadspickerNode implements INodeType {
 				);
 			}
 
-			const projectsFilter = filters.projects as IProjectsFilter;
-			if (projectsFilter?.project?.length) {
-				projectsFilter.project
+			const campaignsFilter = filters.projects as ICampaignsFilter;
+			if (campaignsFilter?.project?.length) {
+				campaignsFilter.project
 					.map((item) => {
 						if (item.id === MANUAL_ID_OPTION) {
 							return LeadspickerNode.toNumericId(item.idManual);
@@ -1453,9 +1438,9 @@ export class LeadspickerNode implements INodeType {
 	}
 
 	/**
-	 * Handles operations for the 'AutoCPH' resource.
+	 * Handles "find a lead" operations that search by company data.
 	 */
-	private static async handleAutoCphOperations(
+	private static async handleLeadFinderOperations(
 		context: IExecuteFunctions,
 		i: number,
 	): Promise<any> {
@@ -1525,7 +1510,7 @@ export class LeadspickerNode implements INodeType {
 			default:
 				throw new NodeOperationError(
 					context.getNode(),
-					`The operation "${operation}" is not supported for AutoCPH resource.`,
+					`The operation "${operation}" is not supported for lead finder operations.`,
 				);
 		}
 	}
@@ -1682,16 +1667,13 @@ export class LeadspickerNode implements INodeType {
 
 				switch (resource) {
 					case 'person':
-						responseData = await LeadspickerNode.handlePersonOperations(this, i);
+						responseData = await LeadspickerNode.handleLeadOperations(this, i);
 						break;
 					case 'project':
-						responseData = await LeadspickerNode.handleProjectOperations(this, i);
+						responseData = await LeadspickerNode.handleCampaignOperations(this, i);
 						break;
 					case 'reply':
 						responseData = await LeadspickerNode.handleReplyOperations(this, i);
-						break;
-					case 'autocph':
-						responseData = await LeadspickerNode.handleAutoCphOperations(this, i);
 						break;
 					case 'linkedinActivity':
 						responseData = await LeadspickerNode.handleLinkedinActivityOperations(this, i);
