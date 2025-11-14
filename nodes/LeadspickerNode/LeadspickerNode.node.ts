@@ -1,12 +1,17 @@
 import {
+	IDataObject,
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
 	NodeOperationError,
-	IDataObject,
 } from 'n8n-workflow';
-import type { NodeConnectionType } from 'n8n-workflow';
+import type {
+	INodePropertyOptions,
+	NodeConnectionType,
+	NodeParameterValueType,
+} from 'n8n-workflow';
 
 import * as moment from 'moment-timezone';
 import { leadspickerApiRequest, getUserTimezone } from './GenericFunctions';
@@ -19,7 +24,8 @@ interface IEmailAccountsFilter {
 	email: IEmailAccountItem[];
 }
 interface IProjectItem {
-	id: number;
+	id: number | string;
+	idManual?: number;
 }
 interface IProjectsFilter {
 	project: IProjectItem[];
@@ -31,7 +37,138 @@ interface ISentimentFilter {
 	sentiment_value: ISentimentItem[];
 }
 
+const MANUAL_ID_OPTION = '__manual__';
+
 export class LeadspickerNode implements INodeType {
+	private static toNumericId(value: unknown): number | undefined {
+		if (typeof value === 'number' && Number.isFinite(value)) {
+			return value;
+		}
+		if (typeof value === 'string' && value.trim() !== '') {
+			const parsed = Number(value);
+			return Number.isNaN(parsed) ? undefined : parsed;
+		}
+		return undefined;
+	}
+
+	private static getIdOrThrow(
+		context: IExecuteFunctions,
+		value: unknown,
+		fieldName: string,
+	): number {
+		const id = LeadspickerNode.toNumericId(value);
+		if (id === undefined) {
+			throw new NodeOperationError(context.getNode(), `Please select a valid ${fieldName}.`);
+		}
+		return id;
+	}
+
+	private static getIdFromOptionOrManual(
+		context: IExecuteFunctions,
+		optionName: string,
+		manualName: string,
+		fieldName: string,
+		i: number,
+	): number {
+		const selection = context.getNodeParameter(optionName, i) as NodeParameterValueType;
+		if (selection === undefined || selection === null || selection === '') {
+			throw new NodeOperationError(context.getNode(), `Please select a ${fieldName}.`);
+		}
+		if (selection === MANUAL_ID_OPTION) {
+			const manualValue = context.getNodeParameter(manualName, i);
+			return LeadspickerNode.getIdOrThrow(context, manualValue, fieldName);
+		}
+		return LeadspickerNode.getIdOrThrow(context, selection, fieldName);
+	}
+
+	private static tryGetIdFromParameters(params: IDataObject, optionName: string, manualName: string): number | undefined {
+		const selection = params[optionName];
+		if (selection === undefined || selection === null || selection === '') {
+			return undefined;
+		}
+		if (selection === MANUAL_ID_OPTION) {
+			return LeadspickerNode.toNumericId(params[manualName]);
+		}
+		return LeadspickerNode.toNumericId(selection);
+	}
+
+	private static getProjectIdForPersonOptions(context: ILoadOptionsFunctions): number | undefined {
+		const params = (context.getCurrentNodeParameters?.() ?? {}) as IDataObject;
+		return (
+			LeadspickerNode.tryGetIdFromParameters(params, 'personLookupProjectId', 'personLookupProjectIdManual') ??
+			LeadspickerNode.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
+		);
+	}
+
+	methods = {
+		loadOptions: {
+			async getProjects(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const query: IDataObject = { limit: 50 };
+				const response = await leadspickerApiRequest.call(this, 'GET', '/projects', {}, query);
+				const list = Array.isArray(response)
+					? (response as IDataObject[])
+					: (Array.isArray((response as IDataObject)?.results)
+							? ((response as IDataObject).results as IDataObject[])
+							: []);
+				const options: INodePropertyOptions[] = [];
+				for (const project of list) {
+					const id = LeadspickerNode.toNumericId(project?.id as NodeParameterValueType);
+					if (id === undefined) continue;
+					const name = typeof project?.name === 'string' && project.name.trim() !== ''
+						? project.name.trim()
+						: `Project #${id}`;
+					options.push({ name, value: id.toString() });
+				}
+				return options;
+			},
+			async getPersons(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const projectId = LeadspickerNode.getProjectIdForPersonOptions(this);
+				if (projectId === undefined) {
+					return [];
+				}
+				const query: IDataObject = { project_id: projectId, page_size: 50 };
+				const response = await leadspickerApiRequest.call(
+					this,
+					'GET',
+					'/persons-simple',
+					{},
+					query,
+				);
+				const responseObject = response as IDataObject;
+				const list = Array.isArray(responseObject?.items)
+					? (responseObject.items as IDataObject[])
+					: Array.isArray(responseObject?.results)
+						? (responseObject.results as IDataObject[])
+						: Array.isArray(response)
+							? (response as IDataObject[])
+							: [];
+				const options: INodePropertyOptions[] = [];
+				for (const person of list) {
+					const id = LeadspickerNode.toNumericId(person?.id as NodeParameterValueType);
+					if (id === undefined) continue;
+					const personData = (person?.person_data ?? {}) as IDataObject;
+					const firstName = [personData.first_name, person?.first_name]
+						.find((name) => typeof name === 'string' && name.trim() !== '') as string | undefined;
+					const lastName = [personData.last_name, person?.last_name]
+						.find((name) => typeof name === 'string' && name.trim() !== '') as string | undefined;
+					const fullName =
+						typeof personData.full_name === 'string' && personData.full_name.trim() !== ''
+							? personData.full_name.trim()
+							: [firstName, lastName]
+								.filter((val) => typeof val === 'string')
+								.map((val) => (val as string).trim())
+								.filter((val) => val !== '')
+								.join(' ');
+					const emailCandidate = [personData.email, person?.email]
+						.find((addr) => typeof addr === 'string' && addr.trim() !== '') as string | undefined;
+					const name = fullName || emailCandidate || `Person #${id}`;
+					options.push({ name, value: id.toString() });
+				}
+				return options;
+			},
+		},
+	};
+
 	description: INodeTypeDescription = {
 		displayName: 'Leadspicker Node',
 		name: 'leadspickerNode',
@@ -298,16 +435,39 @@ export class LeadspickerNode implements INodeType {
 				},
 			},
 
-			// Project ID field for delete operation
+			// Project selector for delete operation
+			{
+				displayName: 'Project Name or ID',
+				name: 'projectDeleteId',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['project'],
+						operation: ['delete'],
+					},
+				},
+				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'getProjects',
+				},
+				options: [
+					{ name: 'Select a project...', value: '' },
+					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+				],
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
 			{
 				displayName: 'Project ID',
-				name: 'projectDeleteId',
+				name: 'projectDeleteIdManual',
 				type: 'number',
 				required: true,
 				displayOptions: {
 					show: {
 						resource: ['project'],
 						operation: ['delete'],
+						projectDeleteId: [MANUAL_ID_OPTION],
 					},
 				},
 				default: 0,
@@ -316,9 +476,9 @@ export class LeadspickerNode implements INodeType {
 
 			// Create Person fields
 			{
-				displayName: 'Project ID',
+				displayName: 'Project Name or ID',
 				name: 'projectId',
-				type: 'number',
+				type: 'options',
 				required: true,
 				displayOptions: {
 					show: {
@@ -326,8 +486,31 @@ export class LeadspickerNode implements INodeType {
 						operation: ['create', 'list'],
 					},
 				},
+				default: '',
+				options: [
+					{ name: 'Select a project...', value: '' },
+					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+				],
+				typeOptions: {
+					loadOptionsMethod: 'getProjects',
+				},
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Project ID',
+				name: 'projectIdManual',
+				type: 'number',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'list'],
+						projectId: [MANUAL_ID_OPTION],
+					},
+				},
 				default: 0,
-				description: 'ID of the project to create the person in',
+				description: 'ID of the project that contains the person records',
 			},
 			{
 				displayName: 'Page',
@@ -356,16 +539,84 @@ export class LeadspickerNode implements INodeType {
 				description: 'Number of results to return per page',
 			},
 
-			// Person ID field for get, update, delete operations
+			// Person lookup project for option list
 			{
-				displayName: 'Person ID',
-				name: 'personId',
+				displayName: 'Person Lookup Project Name or ID',
+				name: 'personLookupProjectId',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['get', 'update', 'delete'],
+					},
+				},
+				// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
+				default: '',
+				options: [
+					{ name: 'Select a project...', value: '' },
+					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+				],
+				typeOptions: {
+					loadOptionsMethod: 'getProjects',
+				},
+					description:
+						'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Person Lookup Project ID',
+				name: 'personLookupProjectIdManual',
 				type: 'number',
 				required: true,
 				displayOptions: {
 					show: {
 						resource: ['person'],
 						operation: ['get', 'update', 'delete'],
+						personLookupProjectId: [MANUAL_ID_OPTION],
+					},
+				},
+				default: 0,
+				description: 'Project ID to load people from when entering manually',
+			},
+
+			// Person ID field for get, update, delete operations
+			{
+				displayName: 'Person Name or ID',
+				name: 'personId',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['get', 'update', 'delete'],
+					},
+				},
+				default: '',
+				options: [
+					{ name: 'Select a person...', value: '' },
+					{ name: 'Enter Person ID manually...', value: MANUAL_ID_OPTION },
+				],
+				typeOptions: {
+					loadOptionsMethod: 'getPersons',
+					loadOptionsDependsOn: [
+						'personLookupProjectId',
+						'personLookupProjectIdManual',
+						'projectId',
+						'projectIdManual',
+					],
+				},
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Person ID',
+				name: 'personIdManual',
+				type: 'number',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['get', 'update', 'delete'],
+						personId: [MANUAL_ID_OPTION],
 					},
 				},
 				default: 0,
@@ -591,12 +842,33 @@ export class LeadspickerNode implements INodeType {
 								name: 'project',
 								values: [
 									{
-										displayName: 'Project ID',
+										displayName: 'Project Name or ID',
 										name: 'id',
-										type: 'number',
-										default: 0,
-										description: 'Project ID to filter by',
+										type: 'options',
+										default: '',
+										options: [
+											{ name: 'Select a project...', value: '' },
+											{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+										],
+										typeOptions: {
+											loadOptionsMethod: 'getProjects',
+										},
+										description:
+											'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 									},
+									{
+										displayName: 'Project ID',
+										name: 'idManual',
+										type: 'number',
+										required: true,
+										displayOptions: {
+											show: {
+												id: [MANUAL_ID_OPTION],
+											},
+										},
+											default: 0,
+											description: 'Project ID to filter by',
+										},
 								],
 							},
 						],
@@ -1006,7 +1278,13 @@ export class LeadspickerNode implements INodeType {
 
 		switch (operation) {
 			case 'list': {
-				const projectId = context.getNodeParameter('projectId', i) as number;
+				const projectId = LeadspickerNode.getIdFromOptionOrManual(
+					context,
+					'projectId',
+					'projectIdManual',
+					'project',
+					i,
+				);
 				const page = context.getNodeParameter('page', i, 1) as number;
 				const pageSize = context.getNodeParameter('pageSize', i) as number;
 				const qs: IDataObject = { project_id: projectId, page_size: pageSize, page: page };
@@ -1038,19 +1316,43 @@ export class LeadspickerNode implements INodeType {
 				});
 
 				if (operation === 'create') {
-					body.project_id = context.getNodeParameter('projectId', i) as number;
+					body.project_id = LeadspickerNode.getIdFromOptionOrManual(
+						context,
+						'projectId',
+						'projectIdManual',
+						'project',
+						i,
+					);
 					return leadspickerApiRequest.call(context, 'POST', '/persons', body);
 				} else {
-					const personId = context.getNodeParameter('personId', i) as number;
+					const personId = LeadspickerNode.getIdFromOptionOrManual(
+						context,
+						'personId',
+						'personIdManual',
+						'person',
+						i,
+					);
 					return leadspickerApiRequest.call(context, 'PATCH', `/persons/${personId}`, body);
 				}
 			}
 			case 'get': {
-				const personId = context.getNodeParameter('personId', i) as number;
+				const personId = LeadspickerNode.getIdFromOptionOrManual(
+					context,
+					'personId',
+					'personIdManual',
+					'person',
+					i,
+				);
 				return leadspickerApiRequest.call(context, 'GET', `/persons-simple/${personId}`);
 			}
 			case 'delete': {
-				const personId = context.getNodeParameter('personId', i) as number;
+				const personId = LeadspickerNode.getIdFromOptionOrManual(
+					context,
+					'personId',
+					'personIdManual',
+					'person',
+					i,
+				);
 				return leadspickerApiRequest.call(context, 'DELETE', `/persons/${personId}`);
 			}
 			default:
@@ -1078,7 +1380,13 @@ export class LeadspickerNode implements INodeType {
 				return leadspickerApiRequest.call(context, 'POST', '/projects', body);
 			}
 			case 'delete': {
-				const projectId = context.getNodeParameter('projectDeleteId', i) as number;
+				const projectId = LeadspickerNode.getIdFromOptionOrManual(
+					context,
+					'projectDeleteId',
+					'projectDeleteIdManual',
+					'project',
+					i,
+				);
 				return leadspickerApiRequest.call(context, 'DELETE', `/projects/${projectId}`);
 			}
 			default:
@@ -1111,10 +1419,15 @@ export class LeadspickerNode implements INodeType {
 
 			const projectsFilter = filters.projects as IProjectsFilter;
 			if (projectsFilter?.project?.length) {
-				const projectIds = projectsFilter.project
-					.map((item) => item.id)
-					.filter((id) => id !== null && id !== undefined && id !== 0);
-				projectIds.forEach((id) => rawQueryParts.push(`projects=${encodeURIComponent(id)}`));
+				projectsFilter.project
+					.map((item) => {
+						if (item.id === MANUAL_ID_OPTION) {
+							return LeadspickerNode.toNumericId(item.idManual);
+						}
+						return LeadspickerNode.toNumericId(item.id);
+					})
+					.filter((id): id is number => id !== undefined)
+					.forEach((id) => rawQueryParts.push(`projects=${encodeURIComponent(id)}`));
 			}
 
 			const sentimentFilter = filters.sentiment as ISentimentFilter;
