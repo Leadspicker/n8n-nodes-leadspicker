@@ -39,6 +39,7 @@ interface ISentimentFilter {
 }
 
 const MANUAL_ID_OPTION = '__manual__';
+const DEFAULT_PAGE_SIZE = 1000;
 
 export class LeadspickerNode implements INodeType {
 	private static toNumericId(value: unknown): number | undefined {
@@ -576,32 +577,6 @@ export class LeadspickerNode implements INodeType {
 				},
 				default: 0,
 				description: 'ID of the campaign that contains the lead records',
-			},
-			{
-				displayName: 'Page',
-				name: 'page',
-				type: 'number',
-				default: 1,
-				displayOptions: {
-					show: {
-						resource: ['person'],
-						operation: ['list'],
-					},
-				},
-				description: 'Page number for pagination',
-			},
-			{
-				displayName: 'Results Per Page',
-				name: 'pageSize',
-				type: 'number',
-				default: 100,
-				displayOptions: {
-					show: {
-						resource: ['person'],
-						operation: ['list'],
-					},
-				},
-				description: 'Number of results to return per page',
 			},
 
 			// Lead lookup campaign for option list
@@ -1350,17 +1325,41 @@ export class LeadspickerNode implements INodeType {
 					'project',
 					i,
 				);
-				const page = context.getNodeParameter('page', i, 1) as number;
-				const pageSize = context.getNodeParameter('pageSize', i) as number;
-				const qs: IDataObject = { project_id: campaignId, page_size: pageSize, page: page };
-				const response = await leadspickerApiRequest.call(
-					context,
-					'GET',
-					`/persons-simple`,
-					{},
-					qs,
-				);
-				return LeadspickerNode.flattenLeadPayload(response);
+				const pageSize = DEFAULT_PAGE_SIZE;
+				let page = 1;
+				const persons: IDataObject[] = [];
+
+				for (let iteration = 0; iteration < 1000; iteration++) {
+					const qs: IDataObject = { project_id: campaignId, page_size: pageSize, page };
+					const response = (await leadspickerApiRequest.call(
+						context,
+						'GET',
+						`/persons-simple`,
+						{},
+						qs,
+					)) as IDataObject;
+
+					const chunk = Array.isArray(response?.items)
+						? (response.items as IDataObject[])
+						: Array.isArray(response?.results)
+							? (response.results as IDataObject[])
+							: Array.isArray(response)
+								? (response as IDataObject[])
+								: [];
+
+					if (!chunk.length) break;
+					persons.push(...chunk);
+
+					if (typeof response?.count === 'number') {
+						if (persons.length >= response.count) break;
+					} else if (chunk.length < pageSize) {
+						break;
+					}
+
+					page += 1;
+				}
+
+				return LeadspickerNode.flattenLeadPayload(persons);
 			}
 			case 'create':
 			case 'update': {
@@ -1524,10 +1523,42 @@ export class LeadspickerNode implements INodeType {
 				);
 			}
 
-			let path = '/inbound-messages';
-			if (rawQueryParts.length > 0) path += '?' + rawQueryParts.join('&');
+			const baseQueryParts = rawQueryParts;
+			const limit = DEFAULT_PAGE_SIZE;
+			let offset = 0;
+			const replies: IDataObject[] = [];
 
-			return leadspickerApiRequest.call(context, 'GET', path, {}, {});
+			for (let iteration = 0; iteration < 1000; iteration++) {
+				const queryParts = [...baseQueryParts, `limit=${limit}`, `offset=${offset}`];
+				let path = '/inbound-messages';
+				if (queryParts.length > 0) path += '?' + queryParts.join('&');
+
+				const response = (await leadspickerApiRequest.call(
+					context,
+					'GET',
+					path,
+					{},
+					{},
+				)) as IDataObject;
+
+				const chunk = Array.isArray(response?.items)
+					? (response.items as IDataObject[])
+					: Array.isArray(response?.results)
+						? (response.results as IDataObject[])
+						: Array.isArray(response)
+							? (response as IDataObject[])
+							: [];
+
+				if (!chunk.length) break;
+				replies.push(...chunk);
+
+				if (typeof response?.count === 'number' && replies.length >= response.count) break;
+				if (chunk.length < limit) break;
+
+				offset += limit;
+			}
+
+			return replies;
 		}
 
 		throw new NodeOperationError(
