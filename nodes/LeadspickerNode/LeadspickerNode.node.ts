@@ -11,6 +11,7 @@ import type {
 	INodePropertyOptions,
 	NodeConnectionType,
 	NodeParameterValueType,
+	GenericValue,
 } from 'n8n-workflow';
 
 import * as moment from 'moment-timezone';
@@ -81,7 +82,11 @@ export class LeadspickerNode implements INodeType {
 		return LeadspickerNode.getIdOrThrow(context, selection, fieldName);
 	}
 
-	private static tryGetIdFromParameters(params: IDataObject, optionName: string, manualName: string): number | undefined {
+	private static tryGetIdFromParameters(
+		params: IDataObject,
+		optionName: string,
+		manualName: string,
+	): number | undefined {
 		const selection = params[optionName];
 		if (selection === undefined || selection === null || selection === '') {
 			return undefined;
@@ -95,9 +100,85 @@ export class LeadspickerNode implements INodeType {
 	private static getCampaignIdForLeadOptions(context: ILoadOptionsFunctions): number | undefined {
 		const params = (context.getCurrentNodeParameters?.() ?? {}) as IDataObject;
 		return (
-			LeadspickerNode.tryGetIdFromParameters(params, 'personLookupProjectId', 'personLookupProjectIdManual') ??
-			LeadspickerNode.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
+			LeadspickerNode.tryGetIdFromParameters(
+				params,
+				'personLookupProjectId',
+				'personLookupProjectIdManual',
+			) ?? LeadspickerNode.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
 		);
+	}
+
+	private static isPlainObject(value: unknown): value is IDataObject {
+		return Object.prototype.toString.call(value) === '[object Object]';
+	}
+
+	private static isAttributeValueObject(value: unknown): value is { value: unknown } {
+		if (!LeadspickerNode.isPlainObject(value)) return false;
+		if (!Object.prototype.hasOwnProperty.call(value, 'value')) return false;
+		const allowedKeys = new Set([
+			'value',
+			'created',
+			'id',
+			'enrichment_status',
+			'validation_status',
+		]);
+		return Object.keys(value).every((key) => allowedKeys.has(key));
+	}
+
+	private static hasMeaningfulValue(value: unknown): boolean {
+		if (value === undefined || value === null) {
+			return false;
+		}
+		if (typeof value === 'string') {
+			return value.trim() !== '';
+		}
+		return true;
+	}
+
+	private static flattenLeadPayload(data: unknown): unknown {
+		if (Array.isArray(data)) {
+			return data.map((entry) => LeadspickerNode.flattenLeadPayload(entry));
+		}
+		if (!LeadspickerNode.isPlainObject(data)) {
+			return data;
+		}
+
+		if (LeadspickerNode.isAttributeValueObject(data)) {
+			return LeadspickerNode.flattenLeadPayload(data.value);
+		}
+
+		const clone: IDataObject = { ...data };
+		const contactData = clone.contact_data as IDataObject | undefined;
+		if (LeadspickerNode.isPlainObject(contactData)) {
+			for (const [key, value] of Object.entries(contactData)) {
+				if (!LeadspickerNode.hasMeaningfulValue(clone[key])) {
+					clone[key] = value;
+				}
+			}
+			delete clone.contact_data;
+		}
+		const personData = clone.person_data as IDataObject | undefined;
+		if (LeadspickerNode.isPlainObject(personData)) {
+			for (const [key, value] of Object.entries(personData)) {
+				if (!LeadspickerNode.hasMeaningfulValue(clone[key])) {
+					clone[key] = value;
+				}
+			}
+			delete clone.person_data;
+		}
+
+		for (const [key, value] of Object.entries(clone)) {
+			if (Array.isArray(value) || LeadspickerNode.isPlainObject(value)) {
+				const normalizedValue = LeadspickerNode.flattenLeadPayload(value) as
+					| GenericValue
+					| IDataObject
+					| GenericValue[]
+					| IDataObject[];
+				clone[key] = normalizedValue;
+			}
+		}
+
+		return clone;
 	}
 
 	methods = {
@@ -107,16 +188,17 @@ export class LeadspickerNode implements INodeType {
 				const response = await leadspickerApiRequest.call(this, 'GET', '/projects', {}, query);
 				const list = Array.isArray(response)
 					? (response as IDataObject[])
-					: (Array.isArray((response as IDataObject)?.results)
-							? ((response as IDataObject).results as IDataObject[])
-							: []);
+					: Array.isArray((response as IDataObject)?.results)
+						? ((response as IDataObject).results as IDataObject[])
+						: [];
 				const options: INodePropertyOptions[] = [];
 				for (const campaign of list) {
 					const id = LeadspickerNode.toNumericId(campaign?.id as NodeParameterValueType);
 					if (id === undefined) continue;
-					const name = typeof campaign?.name === 'string' && campaign.name.trim() !== ''
-						? campaign.name.trim()
-						: `Campaign #${id}`;
+					const name =
+						typeof campaign?.name === 'string' && campaign.name.trim() !== ''
+							? campaign.name.trim()
+							: `Campaign #${id}`;
 					options.push({ name, value: id.toString() });
 				}
 				return options;
@@ -147,20 +229,23 @@ export class LeadspickerNode implements INodeType {
 					const id = LeadspickerNode.toNumericId(lead?.id as NodeParameterValueType);
 					if (id === undefined) continue;
 					const leadData = (lead?.person_data ?? {}) as IDataObject;
-					const firstName = [leadData.first_name, lead?.first_name]
-						.find((name) => typeof name === 'string' && name.trim() !== '') as string | undefined;
-					const lastName = [leadData.last_name, lead?.last_name]
-						.find((name) => typeof name === 'string' && name.trim() !== '') as string | undefined;
+					const firstName = [leadData.first_name, lead?.first_name].find(
+						(name) => typeof name === 'string' && name.trim() !== '',
+					) as string | undefined;
+					const lastName = [leadData.last_name, lead?.last_name].find(
+						(name) => typeof name === 'string' && name.trim() !== '',
+					) as string | undefined;
 					const fullName =
 						typeof leadData.full_name === 'string' && leadData.full_name.trim() !== ''
 							? leadData.full_name.trim()
 							: [firstName, lastName]
-								.filter((val) => typeof val === 'string')
-								.map((val) => (val as string).trim())
-								.filter((val) => val !== '')
-								.join(' ');
-					const emailCandidate = [leadData.email, lead?.email]
-						.find((addr) => typeof addr === 'string' && addr.trim() !== '') as string | undefined;
+									.filter((val) => typeof val === 'string')
+									.map((val) => (val as string).trim())
+									.filter((val) => val !== '')
+									.join(' ');
+					const emailCandidate = [leadData.email, lead?.email].find(
+						(addr) => typeof addr === 'string' && addr.trim() !== '',
+					) as string | undefined;
 					const name = fullName || emailCandidate || `Lead #${id}`;
 					options.push({ name, value: id.toString() });
 				}
@@ -245,7 +330,7 @@ export class LeadspickerNode implements INodeType {
 						name: 'Find by Company Linkedin',
 						value: 'byCompanyLinkedin',
 						description: 'Find leads by a company LinkedIn URL',
-							action: 'Find leads by company profile',
+						action: 'Find leads by company profile',
 					},
 					{
 						name: 'Find by Company Name',
@@ -364,8 +449,7 @@ export class LeadspickerNode implements INodeType {
 					{
 						name: 'Profiles Post Reactors',
 						value: 'profilesPostReactors',
-						description:
-							'Retrieve reactors for posts authored by specific LinkedIn profiles',
+						description: 'Retrieve reactors for posts authored by specific LinkedIn profiles',
 						action: 'Get reactors for profiles',
 					},
 					{
@@ -540,8 +624,8 @@ export class LeadspickerNode implements INodeType {
 				typeOptions: {
 					loadOptionsMethod: 'getCampaigns',
 				},
-					description:
-						'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
 				displayName: 'Lead Lookup Campaign ID',
@@ -847,9 +931,9 @@ export class LeadspickerNode implements INodeType {
 												id: [MANUAL_ID_OPTION],
 											},
 										},
-											default: 0,
-											description: 'Campaign ID to filter by',
-										},
+										default: 0,
+										description: 'Campaign ID to filter by',
+									},
 								],
 							},
 						],
@@ -1269,7 +1353,14 @@ export class LeadspickerNode implements INodeType {
 				const page = context.getNodeParameter('page', i, 1) as number;
 				const pageSize = context.getNodeParameter('pageSize', i) as number;
 				const qs: IDataObject = { project_id: campaignId, page_size: pageSize, page: page };
-				return leadspickerApiRequest.call(context, 'GET', `/persons-simple`, {}, qs);
+				const response = await leadspickerApiRequest.call(
+					context,
+					'GET',
+					`/persons-simple`,
+					{},
+					qs,
+				);
+				return LeadspickerNode.flattenLeadPayload(response);
 			}
 			case 'create':
 			case 'update': {
@@ -1304,7 +1395,8 @@ export class LeadspickerNode implements INodeType {
 						'project',
 						i,
 					);
-					return leadspickerApiRequest.call(context, 'POST', '/persons', body);
+					const response = await leadspickerApiRequest.call(context, 'POST', '/persons', body);
+					return LeadspickerNode.flattenLeadPayload(response);
 				} else {
 					const leadId = LeadspickerNode.getIdFromOptionOrManual(
 						context,
@@ -1313,7 +1405,13 @@ export class LeadspickerNode implements INodeType {
 						'person',
 						i,
 					);
-					return leadspickerApiRequest.call(context, 'PATCH', `/persons/${leadId}`, body);
+					const response = await leadspickerApiRequest.call(
+						context,
+						'PATCH',
+						`/persons/${leadId}`,
+						body,
+					);
+					return LeadspickerNode.flattenLeadPayload(response);
 				}
 			}
 			case 'byCompanyLinkedin':
@@ -1328,7 +1426,8 @@ export class LeadspickerNode implements INodeType {
 					'person',
 					i,
 				);
-				return leadspickerApiRequest.call(context, 'GET', `/persons-simple/${leadId}`);
+				const response = await leadspickerApiRequest.call(context, 'GET', `/persons/${leadId}`);
+				return LeadspickerNode.flattenLeadPayload(response);
 			}
 			case 'delete': {
 				const leadId = LeadspickerNode.getIdFromOptionOrManual(
@@ -1620,7 +1719,7 @@ export class LeadspickerNode implements INodeType {
 					likers_per_post: (options.likersPerPost as number) ?? 0,
 					max_age_days: (options.maxAgeDays as number) ?? 90,
 					posts_limit: (options.postsLimit as number) ?? 30,
-					deduplicate: (options.deduplicate as boolean) ??  false,
+					deduplicate: (options.deduplicate as boolean) ?? false,
 				};
 
 				let cursor: string | null = null;
