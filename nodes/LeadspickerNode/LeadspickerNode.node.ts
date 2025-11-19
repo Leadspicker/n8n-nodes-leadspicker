@@ -15,7 +15,7 @@ import type {
 } from 'n8n-workflow';
 
 import * as moment from 'moment-timezone';
-import { leadspickerApiRequest, getUserTimezone } from './GenericFunctions';
+import { leadspickerApiRequest, getUserTimezone, logToConsole } from './GenericFunctions';
 
 // Interfaces remain the same...
 interface IEmailAccountItem {
@@ -180,6 +180,16 @@ export class LeadspickerNode implements INodeType {
 		}
 
 		return clone;
+	}
+
+	private static extractPersonsFromFinderResponse(response: unknown): IDataObject[] {
+		if (!LeadspickerNode.isPlainObject(response)) return [];
+
+		const persons: IDataObject[] = [];
+		if (Array.isArray((response as IDataObject)?.persons)) {
+			persons.push(...(((response as IDataObject).persons ?? []) as IDataObject[]));
+		}
+		return persons;
 	}
 
 	methods = {
@@ -979,6 +989,38 @@ export class LeadspickerNode implements INodeType {
 				description: 'The name of the company to search for contacts in',
 			},
 			{
+				displayName: 'Job Titles',
+				name: 'functions',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				placeholder: 'Add Job Title',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['byCompanyLinkedin', 'byCompanyName'],
+					},
+				},
+				default: {},
+				description: 'Job titles/roles to filter by (e.g., CEO, Founder, Head of Sales)',
+				options: [
+					{
+						name: 'functionValues',
+						displayName: 'Job Title',
+						values: [
+							{
+								displayName: 'Job Title',
+								name: 'function',
+								type: 'string',
+								default: '',
+								description: 'A job title/position, e.g., "CEO" or "Head of Sales"',
+							},
+						],
+					},
+				],
+			},
+			{
 				displayName: 'Country',
 				name: 'country',
 				type: 'string',
@@ -1205,38 +1247,6 @@ export class LeadspickerNode implements INodeType {
 				],
 			},
 			{
-				displayName: 'Functions',
-				name: 'functions',
-				type: 'fixedCollection',
-				typeOptions: {
-					multipleValues: true,
-				},
-				placeholder: 'Add Function',
-				displayOptions: {
-					show: {
-						resource: ['person'],
-						operation: ['byCompanyLinkedin', 'byCompanyName'],
-					},
-				},
-				default: {},
-				description: 'Job functions to filter by (e.g., CEO, Founder, Head of Sales)',
-				options: [
-					{
-						name: 'functionValues',
-						displayName: 'Function',
-						values: [
-							{
-								displayName: 'Function',
-								name: 'function',
-								type: 'string',
-								default: '',
-								description: 'A job function, e.g., "CEO" or "Head of Sales"',
-							},
-						],
-					},
-				],
-			},
-			{
 				displayName: 'Search Result Limit',
 				name: 'searchResultLimit',
 				type: 'number',
@@ -1292,7 +1302,7 @@ export class LeadspickerNode implements INodeType {
 						type: 'boolean',
 						default: true,
 						description:
-							"Whether to use embeddings similarity to compare provided functions with the leads' positions. Defaults to true.",
+							"Whether to use embeddings similarity to compare provided job titles with the leads' positions. Defaults to true.",
 					},
 					{
 						displayName: 'Embeddings Distance Threshold',
@@ -1579,7 +1589,7 @@ export class LeadspickerNode implements INodeType {
 		switch (operation) {
 			case 'byCompanyLinkedin': {
 				const companyLinkedin = context.getNodeParameter('companyLinkedin', i) as string;
-				const functionsCollection = context.getNodeParameter('functions', i, {}) as {
+				const jobTitlesCollection = context.getNodeParameter('functions', i, {}) as {
 					functionValues?: { function: string }[];
 				};
 				const searchResultLimit = context.getNodeParameter('searchResultLimit', i, 2) as number;
@@ -1599,43 +1609,53 @@ export class LeadspickerNode implements INodeType {
 					embeddings_distance_threshold: additionalOptions.embeddingsDistanceThreshold ?? 0.53,
 				};
 
-				if (functionsCollection.functionValues?.length) {
-					const functions = functionsCollection.functionValues
+				if (jobTitlesCollection.functionValues?.length) {
+					const jobTitles = jobTitlesCollection.functionValues
 						.map((item) => item.function)
 						.filter((f) => f && f.trim() !== '');
-					if (functions.length > 0) body.functions = functions;
+					if (jobTitles.length > 0) body.functions = jobTitles;
 				}
 
-				return leadspickerApiRequest.call(
+				const response = await leadspickerApiRequest.call(
 					context,
 					'POST',
 					'/autocph/by-company-linkedin',
 					body,
 					{},
 				);
+				return LeadspickerNode.extractPersonsFromFinderResponse(response);
 			}
 			case 'byCompanyName': {
 				const companyName = context.getNodeParameter('companyName', i) as string;
-				const country = context.getNodeParameter('country', i, '') as string;
-				const functionsCollection = context.getNodeParameter('functions', i, {}) as {
+				const country = (context.getNodeParameter('country', i, '') as string).trim();
+				const jobTitlesCollection = context.getNodeParameter('functions', i, {}) as {
 					functionValues?: { function: string }[];
 				};
 				const searchResultLimit = context.getNodeParameter('searchResultLimit', i, 2) as number;
+				const enrichEmails = context.getNodeParameter('enrichEmails', i, false) as boolean;
 
 				const body: IDataObject = {
 					company_name: companyName,
 					search_result_limit: searchResultLimit,
+					enrich_emails: enrichEmails,
 				};
-				if (country) body.country = country;
+				if (country !== '') body.country = country;
 
-				if (functionsCollection.functionValues?.length) {
-					const functions = functionsCollection.functionValues
+				if (jobTitlesCollection.functionValues?.length) {
+					const jobTitles = jobTitlesCollection.functionValues
 						.map((item) => item.function)
 						.filter((f) => f && f.trim() !== '');
-					if (functions.length > 0) body.functions = functions;
+					if (jobTitles.length > 0) body.functions = jobTitles;
 				}
 
-				return leadspickerApiRequest.call(context, 'POST', '/autocph/by-company-name', body, {});
+				const response = await leadspickerApiRequest.call(
+					context,
+					'POST',
+					'/autocph/by-company-name',
+					body,
+					{},
+				);
+				return LeadspickerNode.extractPersonsFromFinderResponse(response);
 			}
 			default:
 				throw new NodeOperationError(
