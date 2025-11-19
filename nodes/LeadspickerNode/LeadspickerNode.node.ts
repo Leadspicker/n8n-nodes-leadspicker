@@ -182,14 +182,14 @@ export class LeadspickerNode implements INodeType {
 		return clone;
 	}
 
-	private static extractPersonsFromFinderResponse(response: unknown): IDataObject[] {
+	private static extractItemsFromFinderResponse(response: unknown, key_name: string): IDataObject[] {
 		if (!LeadspickerNode.isPlainObject(response)) return [];
 
-		const persons: IDataObject[] = [];
-		if (Array.isArray((response as IDataObject)?.persons)) {
-			persons.push(...(((response as IDataObject).persons ?? []) as IDataObject[]));
+		const items: IDataObject[] = [];
+		if (Array.isArray(response[key_name])) {
+			items.push(...(response[key_name] as IDataObject[]));
 		}
-		return persons;
+		return items;
 	}
 
 	methods = {
@@ -1623,7 +1623,7 @@ export class LeadspickerNode implements INodeType {
 					body,
 					{},
 				);
-				return LeadspickerNode.extractPersonsFromFinderResponse(response);
+				return LeadspickerNode.extractItemsFromFinderResponse(response, "persons");
 			}
 			case 'byCompanyName': {
 				const companyName = context.getNodeParameter('companyName', i) as string;
@@ -1655,7 +1655,7 @@ export class LeadspickerNode implements INodeType {
 					body,
 					{},
 				);
-				return LeadspickerNode.extractPersonsFromFinderResponse(response);
+				return LeadspickerNode.extractItemsFromFinderResponse(response, "persons");
 			}
 			default:
 				throw new NodeOperationError(
@@ -1688,7 +1688,8 @@ export class LeadspickerNode implements INodeType {
 			case 'getActivities': {
 				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
 				const body: IDataObject = { linkedin_url: linkedinUrl };
-				return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-activities', body);
+				const response = await leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-activities', body);
+				return LeadspickerNode.extractItemsFromFinderResponse(response, "activities");
 			}
 			case 'getPostReactors': {
 				const webhookUrl = context.getNodeParameter('webhookUrl', i) as string;
