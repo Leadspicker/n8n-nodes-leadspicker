@@ -437,38 +437,38 @@ export class LeadspickerNode implements INodeType {
 						name: 'Get Activities',
 						value: 'getActivities',
 						description: "Get a profile's recent activities (reactions and comments)",
-						action: 'Get recent activities',
+						action: 'Get recent profile activities',
 					},
 					{
-						name: 'Get Post Reactors',
+						name: 'Get Interactions for Profiles',
+						value: 'profilesPostReactors',
+						description: 'Retrieve interactors for posts authored by specific LinkedIn profiles',
+						action: 'Get interactors for profiles',
+					},
+					{
+						name: 'Get Post Interactors',
 						value: 'getPostReactors',
-						description: 'Get people who reacted to posts and send to a webhook',
-						action: 'Get post reactors',
+						description: 'Get people who interact with posts and send to a webhook',
+						action: 'Get post interactors',
 					},
 					{
-						name: 'Get Posts',
-						value: 'getPosts',
-						description: "Get a profile's latest posts",
-						action: 'Get latest posts',
-					},
-					{
-						name: 'Get Profile',
+						name: 'Get Profile Details',
 						value: 'getProfile',
 						description: 'Scrapes and returns details for a LinkedIn profile',
 						action: 'Get profile details',
 					},
 					{
-						name: 'Profiles Post Reactors',
-						value: 'profilesPostReactors',
-						description: 'Retrieve reactors for posts authored by specific LinkedIn profiles',
-						action: 'Get reactors for profiles',
+						name: 'Get Recent Profile Posts',
+						value: 'getPosts',
+						description: "Get profile's recent posts",
+						action: 'Get recent profile posts',
 					},
 					{
-						name: 'Search Post Reactors',
+						name: 'Search Post Interactors',
 						value: 'searchPostReactors',
 						description:
-							'Retrieve LinkedIn profiles that reacted to posts returned by a content search URL',
-						action: 'Search post reactors',
+							'Retrieve LinkedIn profiles that interacted with posts returned by a content search URL',
+						action: 'Search post interactors',
 					},
 				],
 				default: 'getProfile',
@@ -1062,6 +1062,110 @@ export class LeadspickerNode implements INodeType {
 				description: 'The LinkedIn URL of the personal or company profile',
 			},
 			{
+				displayName: 'Activity Section',
+				name: 'includeActivityCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the recent activity section in the response',
+			},
+			{
+				displayName: 'Adjacent Section',
+				name: 'includeAdjacentCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the adjacent/related profiles section',
+			},
+			{
+				displayName: 'Education Section',
+				name: 'includeEducationCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the education section',
+			},
+			{
+				displayName: 'Experience Section',
+				name: 'includeExperienceCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the experience section',
+			},
+			{
+				displayName: 'Followers Section',
+				name: 'includeFollowersCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the follower stats section',
+			},
+			{
+				displayName: 'Location Section',
+				name: 'includeLocationCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the location information section',
+			},
+			{
+				displayName: 'Overview Section',
+				name: 'includeOverviewCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the overview/about section',
+			},
+			{
+				displayName: 'Skills Section',
+				name: 'includeSkillsCard',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['getProfile'],
+					},
+				},
+				description: 'Whether to include the skills section',
+			},
+			{
 				displayName: 'Search URL',
 				name: 'searchUrl',
 				type: 'string',
@@ -1090,7 +1194,7 @@ export class LeadspickerNode implements INodeType {
 						operation: ['profilesPostReactors'],
 					},
 				},
-				description: 'A list of LinkedIn profile URLs to get reactors from',
+				description: 'A list of LinkedIn profile URLs to get interactors from',
 				options: [
 					{
 						name: 'profiles',
@@ -1136,7 +1240,7 @@ export class LeadspickerNode implements INodeType {
 						operation: ['getPostReactors'],
 					},
 				},
-				description: 'A list of LinkedIn profile URLs to get post reactors from',
+				description: 'A list of LinkedIn profile URLs to get post interactors from',
 				options: [
 					{
 						name: 'urls',
@@ -1154,7 +1258,7 @@ export class LeadspickerNode implements INodeType {
 				],
 			},
 			{
-				displayName: 'Post Reactors Options',
+				displayName: 'Post Interactors Options',
 				name: 'postReactorsOptions',
 				type: 'collection',
 				placeholder: 'Add Option',
@@ -1181,16 +1285,16 @@ export class LeadspickerNode implements INodeType {
 						description: 'The maximum number of posts to check per profile URL',
 					},
 					{
-						displayName: 'Max Reactors per Post',
+						displayName: 'Max Interactors per Post',
 						name: 'maxReactors',
 						type: 'number',
 						default: 50,
-						description: 'The maximum number of reactors to return per post',
+						description: 'The maximum number of interactors to return per post',
 					},
 				],
 			},
 			{
-				displayName: 'Reactors Search Options',
+				displayName: 'Interactors Search Options',
 				name: 'reactorsSearchOptions',
 				type: 'collection',
 				placeholder: 'Add Option',
@@ -1207,7 +1311,7 @@ export class LeadspickerNode implements INodeType {
 						name: 'deduplicate',
 						type: 'boolean',
 						default: false,
-						description: 'Whether to deduplicate reactors across posts',
+						description: 'Whether to deduplicate interactors across posts',
 					},
 					{
 						displayName: 'Include Author',
@@ -1674,16 +1778,31 @@ export class LeadspickerNode implements INodeType {
 	): Promise<any> {
 		const operation = context.getNodeParameter('operation', i) as string;
 
-		switch (operation) {
-			case 'getProfile': {
-				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
-				const body: IDataObject = { linkedin_url: linkedinUrl };
-				return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-profile', body);
-			}
+			switch (operation) {
+				case 'getProfile': {
+					const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
+					const body: IDataObject = { linkedin_url: linkedinUrl };
+					const selectableCards: Array<{ apiValue: string; paramName: string }> = [
+						{ apiValue: 'activity', paramName: 'includeActivityCard' },
+						{ apiValue: 'adjacent', paramName: 'includeAdjacentCard' },
+						{ apiValue: 'education', paramName: 'includeEducationCard' },
+						{ apiValue: 'experience', paramName: 'includeExperienceCard' },
+						{ apiValue: 'followers', paramName: 'includeFollowersCard' },
+						{ apiValue: 'location', paramName: 'includeLocationCard' },
+						{ apiValue: 'overview', paramName: 'includeOverviewCard' },
+						{ apiValue: 'skills', paramName: 'includeSkillsCard' },
+					];
+					const selectedCards = selectableCards
+						.filter((card) => context.getNodeParameter(card.paramName, i, false) as boolean)
+						.map((card) => card.apiValue);
+					if (selectedCards.length) body.cards = selectedCards;
+					return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-profile', body);
+				}
 			case 'getPosts': {
 				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
 				const body: IDataObject = { linkedin_url: linkedinUrl };
-				return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-posts', body);
+				const response = await leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-posts', body);
+				return LeadspickerNode.extractItemsFromFinderResponse(response, "posts");
 			}
 			case 'getActivities': {
 				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
