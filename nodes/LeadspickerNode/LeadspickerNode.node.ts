@@ -1212,6 +1212,32 @@ export class LeadspickerNode implements INodeType {
 				],
 			},
 			{
+				displayName: 'Include Likers',
+				name: 'includePostLikers',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['profilesPostReactors'],
+					},
+				},
+				description: 'Whether to include likers per post (max 10 by default)',
+			},
+			{
+				displayName: 'Include Commenters',
+				name: 'includePostCommenters',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['profilesPostReactors'],
+					},
+				},
+				description: 'Whether to include commenters per post (max 10 by default)',
+			},
+			{
 				displayName: 'Webhook URL',
 				name: 'webhookUrl',
 				type: 'string',
@@ -1873,25 +1899,31 @@ export class LeadspickerNode implements INodeType {
 
 				return results;
 			}
-			case 'profilesPostReactors': {
-				const profilesList = context.getNodeParameter('profilesList', i, {}) as {
-					profiles?: { url: string }[];
-				};
-				const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
+				case 'profilesPostReactors': {
+					const profilesList = context.getNodeParameter('profilesList', i, {}) as {
+						profiles?: { url: string }[];
+					};
+					const includePostLikers = context.getNodeParameter('includePostLikers', i, false) as boolean;
+					const includePostCommenters = context.getNodeParameter('includePostCommenters', i, false) as boolean;
+					const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
 
-				const profiles = (profilesList.profiles || [])
-					.map((p) => p.url)
-					.filter((u) => u && u.trim() !== '');
+					const profiles = (profilesList.profiles || [])
+						.map((p) => p.url)
+						.filter((u) => u && u.trim() !== '');
 
-				const baseBody: IDataObject = {
-					profiles,
-					include_author: (options.includeAuthor as boolean) ?? false,
-					commenters_per_post: (options.commentersPerPost as number) ?? 0,
-					likers_per_post: (options.likersPerPost as number) ?? 0,
-					max_age_days: (options.maxAgeDays as number) ?? 90,
-					posts_limit: (options.postsLimit as number) ?? 30,
-					deduplicate: (options.deduplicate as boolean) ?? false,
-				};
+					const commentersPerPost = includePostCommenters
+						? 10
+						: ((options.commentersPerPost as number) ?? 0);
+					const likersPerPost = includePostLikers ? 10 : ((options.likersPerPost as number) ?? 0);
+					const baseBody: IDataObject = {
+						profiles,
+						include_author: (options.includeAuthor as boolean) ?? false,
+						commenters_per_post: commentersPerPost,
+						likers_per_post: likersPerPost,
+						max_age_days: (options.maxAgeDays as number) ?? 90,
+						posts_limit: (options.postsLimit as number) ?? 30,
+						deduplicate: (options.deduplicate as boolean) ?? false,
+					};
 
 				let cursor: string | null = null;
 				const results: IDataObject[] = [];
