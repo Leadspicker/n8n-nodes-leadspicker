@@ -673,126 +673,151 @@ export class LeadspickerNode implements INodeType {
 				description: 'ID of the lead',
 			},
 
-			// Lead Details Section
+			// Lead Fields
 			{
-				displayName: 'Lead Details',
-				name: 'personDetails',
-				type: 'collection',
-				placeholder: 'Add Lead Detail',
-				default: {},
+				displayName: 'Country',
+				name: 'leadCountry',
+				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['person'],
 						operation: ['create', 'update'],
 					},
 				},
-				options: [
-					{
-						displayName: 'Country',
-						name: 'country',
-						type: 'string',
-						default: '',
-						description: 'Country of the lead',
-					},
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						placeholder: 'name@email.com',
-						default: '',
-						description: 'Email address of the lead',
-					},
-					{
-						displayName: 'First Name',
-						name: 'first_name',
-						type: 'string',
-						default: '',
-						description: 'First name of the lead',
-					},
-					{
-						displayName: 'Last Name',
-						name: 'last_name',
-						type: 'string',
-						default: '',
-						description: 'Last name of the lead',
-					},
-					{
-						displayName: 'Position',
-						name: 'position',
-						type: 'string',
-						default: '',
-						description: 'Job position/title of the lead',
-					},
-				],
+				description: 'Country of the lead',
 			},
-
-			// Company Details Section
 			{
-				displayName: 'Company Details',
-				name: 'companyDetails',
-				type: 'collection',
-				placeholder: 'Add Company Detail',
-				default: {},
+				displayName: 'Full Name',
+				name: 'leadFullName',
+				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['person'],
 						operation: ['create', 'update'],
 					},
 				},
-				options: [
-					{
-						displayName: 'Company Name',
-						name: 'company_name',
-						type: 'string',
-						default: '',
-						description: 'Company name where the lead works',
-					},
-					{
-						displayName: 'Company Website',
-						name: 'company_website',
-						type: 'string',
-						default: '',
-						description: 'Company website URL',
-					},
-					{
-						displayName: 'Company LinkedIn',
-						name: 'company_linkedin',
-						type: 'string',
-						default: '',
-						description: 'Company LinkedIn URL',
-					},
-				],
+				description:
+					'Full name of the lead (overrides First/Last name when at least two words are provided)',
 			},
-
-			// Social Profiles Section
 			{
-				displayName: 'Social Profiles',
-				name: 'socialProfiles',
-				type: 'collection',
-				placeholder: 'Add Social Profile',
-				default: {},
+				displayName: 'Email',
+				name: 'leadEmail',
+				type: 'string',
+				placeholder: 'name@email.com',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['person'],
 						operation: ['create', 'update'],
 					},
 				},
-				options: [
-					{
-						displayName: 'LinkedIn',
-						name: 'linkedin',
-						type: 'string',
-						default: '',
-						description: 'Lead LinkedIn URL',
+				description: 'Email address of the lead',
+			},
+			{
+				displayName: 'First Name',
+				name: 'leadFirstName',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
 					},
-					{
-						displayName: 'Sales Navigator',
-						name: 'salesnav',
-						type: 'string',
-						default: '',
-						description: 'LinkedIn Sales Navigator URL',
+				},
+				description: 'First name of the lead',
+			},
+			{
+				displayName: 'Last Name',
+				name: 'leadLastName',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
 					},
-				],
+				},
+				description: 'Last name of the lead',
+			},
+			{
+				displayName: 'Position',
+				name: 'leadPosition',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
+					},
+				},
+				description: 'Job position/title of the lead',
+			},
+			{
+				displayName: 'Company Name',
+				name: 'leadCompanyName',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
+					},
+				},
+				description: 'Company name where the lead works',
+			},
+			{
+				displayName: 'Company Website',
+				name: 'leadCompanyWebsite',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
+					},
+				},
+				description: 'Company website URL',
+			},
+			{
+				displayName: 'Company LinkedIn',
+				name: 'leadCompanyLinkedin',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
+					},
+				},
+				description: 'Company LinkedIn URL',
+			},
+			{
+				displayName: 'Lead LinkedIn',
+				name: 'leadLinkedin',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
+					},
+				},
+				description: 'Lead LinkedIn URL',
+			},
+			{
+				displayName: 'Sales Navigator',
+				name: 'leadSalesNavigator',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['person'],
+						operation: ['create', 'update'],
+					},
+				},
+				description: 'LinkedIn Sales Navigator URL',
 			},
 
 			// Custom Fields Section
@@ -1529,16 +1554,35 @@ export class LeadspickerNode implements INodeType {
 			}
 			case 'create':
 			case 'update': {
-				const leadDetails = context.getNodeParameter('personDetails', i) as IDataObject;
-				const companyDetails = context.getNodeParameter('companyDetails', i) as IDataObject;
-				const socialProfiles = context.getNodeParameter('socialProfiles', i) as IDataObject;
 				const customFields = context.getNodeParameter('customFields', i) as IDataObject;
-				const body: IDataObject = {
-					data_source: 'user_provided',
-					...leadDetails,
-					...companyDetails,
-					...socialProfiles,
-				};
+				const fieldMappings: Array<[string, string]> = [
+					['leadCountry', 'country'],
+					['leadEmail', 'email'],
+					['leadFirstName', 'first_name'],
+					['leadLastName', 'last_name'],
+					['leadPosition', 'position'],
+					['leadCompanyName', 'company_name'],
+					['leadCompanyWebsite', 'company_website'],
+					['leadCompanyLinkedin', 'company_linkedin'],
+					['leadLinkedin', 'linkedin'],
+					['leadSalesNavigator', 'salesnav'],
+				];
+				const body: IDataObject = { data_source: 'user_provided' };
+				for (const [paramName, payloadKey] of fieldMappings) {
+					body[payloadKey] = context.getNodeParameter(paramName, i) as NodeParameterValueType;
+				}
+				const fullNameRaw = context.getNodeParameter('leadFullName', i) as string;
+				if (typeof fullNameRaw === 'string') {
+					const nameParts = fullNameRaw
+						.split(/\s+/)
+						.map((part) => part.trim())
+						.filter((part) => part.length > 0);
+					if (nameParts.length >= 2) {
+						// Use first token as first name, join remaining parts for last name
+						body.first_name = nameParts[0];
+						body.last_name = nameParts.slice(1).join(' ');
+					}
+				}
 
 				if (customFields.field && Array.isArray(customFields.field)) {
 					const customFieldsObj: IDataObject = {};
