@@ -25,6 +25,7 @@
     "format": "prettier nodes credentials --write",
     "lint": "eslint nodes credentials package.json",
     "lintfix": "eslint nodes credentials package.json --fix",
+		"test": "tsc --project tsconfig.json && mocha \"dist/tests/**/*.test.js\"",
     "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
   },
   "files": [
@@ -40,10 +41,13 @@
     ]
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.10.1",
     "@typescript-eslint/parser": "~8.32.0",
     "eslint": "^8.57.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.3",
     "gulp": "^5.0.0",
+    "mocha": "^11.7.5",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   },

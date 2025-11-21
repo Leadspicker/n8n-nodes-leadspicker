@@ -15,7 +15,7 @@ import type {
 } from 'n8n-workflow';
 
 import * as moment from 'moment-timezone';
-import { leadspickerApiRequest, getUserTimezone, logToConsole } from './GenericFunctions';
+import { leadspickerApiRequest, getUserTimezone } from './GenericFunctions';
 
 // Interfaces remain the same...
 interface IEmailAccountItem {
@@ -190,6 +190,52 @@ export class LeadspickerNode implements INodeType {
 			items.push(...(response[key_name] as IDataObject[]));
 		}
 		return items;
+	}
+
+	private static buildLeadPayload(context: IExecuteFunctions, i: number): IDataObject {
+		const customFields = context.getNodeParameter('customFields', i) as IDataObject;
+		const fieldMappings: Array<[string, string]> = [
+			['leadCountry', 'country'],
+			['leadEmail', 'email'],
+			['leadFirstName', 'first_name'],
+			['leadLastName', 'last_name'],
+			['leadPosition', 'position'],
+			['leadCompanyName', 'company_name'],
+			['leadCompanyWebsite', 'company_website'],
+			['leadCompanyLinkedin', 'company_linkedin'],
+			['leadLinkedin', 'linkedin'],
+			['leadSalesNavigator', 'salesnav'],
+		];
+		const body: IDataObject = { data_source: 'user_provided' };
+		for (const [paramName, payloadKey] of fieldMappings) {
+			body[payloadKey] = context.getNodeParameter(paramName, i) as NodeParameterValueType;
+		}
+		const fullNameRaw = context.getNodeParameter('leadFullName', i) as string;
+		if (typeof fullNameRaw === 'string') {
+			const nameParts = fullNameRaw
+				.split(/\s+/)
+				.map((part) => part.trim())
+				.filter((part) => part.length > 0);
+			if (nameParts.length >= 2) {
+				// Use first token as first name, join remaining parts for last name
+				body.first_name = nameParts[0];
+				body.last_name = nameParts.slice(1).join(' ');
+			}
+		}
+
+		if (customFields.field && Array.isArray(customFields.field)) {
+			const customFieldsObj: IDataObject = {};
+			for (const field of customFields.field as any[]) {
+				if (field.key && field.value) customFieldsObj[field.key] = field.value;
+			}
+			if (Object.keys(customFieldsObj).length > 0) body.custom_fields = customFieldsObj;
+		}
+
+		Object.keys(body).forEach((key) => {
+			if (body[key] === '' || body[key] === null || body[key] === undefined) delete body[key];
+		});
+
+		return body;
 	}
 
 	methods = {
@@ -1554,47 +1600,7 @@ export class LeadspickerNode implements INodeType {
 			}
 			case 'create':
 			case 'update': {
-				const customFields = context.getNodeParameter('customFields', i) as IDataObject;
-				const fieldMappings: Array<[string, string]> = [
-					['leadCountry', 'country'],
-					['leadEmail', 'email'],
-					['leadFirstName', 'first_name'],
-					['leadLastName', 'last_name'],
-					['leadPosition', 'position'],
-					['leadCompanyName', 'company_name'],
-					['leadCompanyWebsite', 'company_website'],
-					['leadCompanyLinkedin', 'company_linkedin'],
-					['leadLinkedin', 'linkedin'],
-					['leadSalesNavigator', 'salesnav'],
-				];
-				const body: IDataObject = { data_source: 'user_provided' };
-				for (const [paramName, payloadKey] of fieldMappings) {
-					body[payloadKey] = context.getNodeParameter(paramName, i) as NodeParameterValueType;
-				}
-				const fullNameRaw = context.getNodeParameter('leadFullName', i) as string;
-				if (typeof fullNameRaw === 'string') {
-					const nameParts = fullNameRaw
-						.split(/\s+/)
-						.map((part) => part.trim())
-						.filter((part) => part.length > 0);
-					if (nameParts.length >= 2) {
-						// Use first token as first name, join remaining parts for last name
-						body.first_name = nameParts[0];
-						body.last_name = nameParts.slice(1).join(' ');
-					}
-				}
-
-				if (customFields.field && Array.isArray(customFields.field)) {
-					const customFieldsObj: IDataObject = {};
-					for (const field of customFields.field as any[]) {
-						if (field.key && field.value) customFieldsObj[field.key] = field.value;
-					}
-					if (Object.keys(customFieldsObj).length > 0) body.custom_fields = customFieldsObj;
-				}
-
-				Object.keys(body).forEach((key) => {
-					if (body[key] === '' || body[key] === null || body[key] === undefined) delete body[key];
-				});
+				const body = LeadspickerNode.buildLeadPayload(context, i);
 
 				if (operation === 'create') {
 					body.project_id = LeadspickerNode.getIdFromOptionOrManual(
