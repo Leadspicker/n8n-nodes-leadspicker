@@ -440,6 +440,13 @@ export class LeadspickerNode implements INodeType {
 						action: 'Get recent profile activities',
 					},
 					{
+						name: 'Get Interactions for LinkedIn Post Search',
+						value: 'searchPostReactors',
+						description:
+							'Retrieve LinkedIn profiles that interacted with posts returned by a content search URL',
+						action: 'Get interactions for linkedin post search',
+					},
+					{
 						name: 'Get Interactions for Profiles',
 						value: 'profilesPostReactors',
 						description: 'Retrieve interactors for posts authored by specific LinkedIn profiles',
@@ -462,13 +469,6 @@ export class LeadspickerNode implements INodeType {
 						value: 'getPosts',
 						description: "Get profile's recent posts",
 						action: 'Get recent profile posts',
-					},
-					{
-						name: 'Search Post Interactors',
-						value: 'searchPostReactors',
-						description:
-							'Retrieve LinkedIn profiles that interacted with posts returned by a content search URL',
-						action: 'Search post interactors',
 					},
 				],
 				default: 'getProfile',
@@ -1180,6 +1180,32 @@ export class LeadspickerNode implements INodeType {
 				description: 'The LinkedIn content search URL to iterate posts from',
 			},
 			{
+				displayName: 'Include Likers',
+				name: 'includeSearchLikers',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['searchPostReactors'],
+					},
+				},
+				description: 'Whether to include likers per post automatically (max 10 by default)',
+			},
+			{
+				displayName: 'Include Commenters',
+				name: 'includeSearchCommenters',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['linkedinActivity'],
+						operation: ['searchPostReactors'],
+					},
+				},
+				description: 'Whether to include commenters per post automatically (max 10 by default)',
+			},
+			{
 				displayName: 'Profile URLs',
 				name: 'profilesList',
 				type: 'fixedCollection',
@@ -1865,13 +1891,20 @@ export class LeadspickerNode implements INodeType {
 			}
 			case 'searchPostReactors': {
 				const searchUrl = context.getNodeParameter('searchUrl', i) as string;
+				const includeSearchLikers = context.getNodeParameter('includeSearchLikers', i, false) as boolean;
+				const includeSearchCommenters = context.getNodeParameter('includeSearchCommenters', i, false) as boolean;
 				const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
+
+				const commentersPerPost = includeSearchCommenters
+					? 10
+					: ((options.commentersPerPost as number) ?? 0);
+				const likersPerPost = includeSearchLikers ? 10 : ((options.likersPerPost as number) ?? 0);
 
 				const baseBody: IDataObject = {
 					search_url: searchUrl,
 					include_author: (options.includeAuthor as boolean) ?? false,
-					commenters_per_post: (options.commentersPerPost as number) ?? 0,
-					likers_per_post: (options.likersPerPost as number) ?? 0,
+					commenters_per_post: commentersPerPost,
+					likers_per_post: likersPerPost,
 					max_age_days: (options.maxAgeDays as number) ?? 90,
 					posts_limit: (options.postsLimit as number) ?? 30,
 					deduplicate: (options.deduplicate as boolean) ?? false,
