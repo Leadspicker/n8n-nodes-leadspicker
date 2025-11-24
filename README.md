@@ -47,6 +47,18 @@ This node supports the following resources and operations:
 
 Note: The Linkedin Activity operations "Search Post Reactors" and "Profiles Post Reactors" auto-paginate. They aggregate all pages internally (handling the cursor automatically) and return a single flat list of reactor profiles.
 
+## **Triggers**
+
+The Leadspicker Trigger node lets you subscribe to webhook events for a project and fire workflows from these Leadspicker events:
+
+* Account revoked (connected account access revoked)
+* Email bounced
+* Email reply
+* Email sent
+* LinkedIn reply
+* LinkedIn sent
+* Lead added to a project
+
 ## **Credentials**
 
 To use this node, you need to authenticate using your Leadspicker API credentials.
