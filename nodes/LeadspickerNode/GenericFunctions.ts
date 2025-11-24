@@ -1,9 +1,11 @@
 import type {
 	IExecuteFunctions,
+	IHookFunctions,
 	IDataObject,
 	IHttpRequestMethods,
 	ILoadOptionsFunctions,
 	IRequestOptions,
+	IWebhookFunctions,
 } from 'n8n-workflow';
 
 const RATE_LIMIT_THRESHOLD = 10;
@@ -15,7 +17,7 @@ type ConsoleLogger = {
 	log: (...args: unknown[]) => void;
 };
 
-function logToConsole(message: string, payload: Record<string, unknown>) {
+export function logToConsole(message: string, payload: Record<string, unknown>) {
 	const consoleLogger = (globalThis as { console?: ConsoleLogger }).console;
 	if (!consoleLogger) {
 		return;
@@ -76,7 +78,7 @@ function getStatusCode(error: unknown) {
 }
 
 export async function leadspickerApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions | IWebhookFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},
@@ -143,4 +145,8 @@ export function getUserTimezone(): string {
 	} catch {
 		return 'Europe/Prague';
 	}
+}
+
+export function isPlainObject(value: unknown): value is IDataObject {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

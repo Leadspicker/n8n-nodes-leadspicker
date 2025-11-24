@@ -15,7 +15,7 @@ import type {
 } from 'n8n-workflow';
 
 import * as moment from 'moment-timezone';
-import { leadspickerApiRequest, getUserTimezone } from './GenericFunctions';
+import { leadspickerApiRequest, getUserTimezone, isPlainObject } from './GenericFunctions';
 
 // Interfaces remain the same...
 interface IEmailAccountItem {
@@ -109,12 +109,8 @@ export class LeadspickerNode implements INodeType {
 		);
 	}
 
-	private static isPlainObject(value: unknown): value is IDataObject {
-		return Object.prototype.toString.call(value) === '[object Object]';
-	}
-
 	private static isAttributeValueObject(value: unknown): value is { value: unknown } {
-		if (!LeadspickerNode.isPlainObject(value)) return false;
+		if (!isPlainObject(value)) return false;
 		if (!Object.prototype.hasOwnProperty.call(value, 'value')) return false;
 		const allowedKeys = new Set([
 			'value',
@@ -140,7 +136,7 @@ export class LeadspickerNode implements INodeType {
 		if (Array.isArray(data)) {
 			return data.map((entry) => LeadspickerNode.flattenLeadPayload(entry));
 		}
-		if (!LeadspickerNode.isPlainObject(data)) {
+		if (!isPlainObject(data)) {
 			return data;
 		}
 
@@ -150,7 +146,7 @@ export class LeadspickerNode implements INodeType {
 
 		const clone: IDataObject = { ...data };
 		const contactData = clone.contact_data as IDataObject | undefined;
-		if (LeadspickerNode.isPlainObject(contactData)) {
+		if (isPlainObject(contactData)) {
 			for (const [key, value] of Object.entries(contactData)) {
 				if (!LeadspickerNode.hasMeaningfulValue(clone[key])) {
 					clone[key] = value;
@@ -159,7 +155,7 @@ export class LeadspickerNode implements INodeType {
 			delete clone.contact_data;
 		}
 		const personData = clone.person_data as IDataObject | undefined;
-		if (LeadspickerNode.isPlainObject(personData)) {
+		if (isPlainObject(personData)) {
 			for (const [key, value] of Object.entries(personData)) {
 				if (!LeadspickerNode.hasMeaningfulValue(clone[key])) {
 					clone[key] = value;
@@ -169,7 +165,7 @@ export class LeadspickerNode implements INodeType {
 		}
 
 		for (const [key, value] of Object.entries(clone)) {
-			if (Array.isArray(value) || LeadspickerNode.isPlainObject(value)) {
+			if (Array.isArray(value) || isPlainObject(value)) {
 				const normalizedValue = LeadspickerNode.flattenLeadPayload(value) as
 					| GenericValue
 					| IDataObject
@@ -183,7 +179,7 @@ export class LeadspickerNode implements INodeType {
 	}
 
 	private static extractItemsFromFinderResponse(response: unknown, key_name: string): IDataObject[] {
-		if (!LeadspickerNode.isPlainObject(response)) return [];
+		if (!isPlainObject(response)) return [];
 
 		const items: IDataObject[] = [];
 		if (Array.isArray(response[key_name])) {
