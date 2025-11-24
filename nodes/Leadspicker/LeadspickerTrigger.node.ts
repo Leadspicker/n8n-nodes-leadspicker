@@ -118,7 +118,7 @@ function extractPersonsFromBody(body: unknown): IDataObject[] {
 	if (!isPlainObject(body)) {
 		return persons;
 	}
-	const personPayload = body.person ?? body.persons ?? body.people;
+	const personPayload = body.person ?? body.persons;
 	if (Array.isArray(personPayload)) {
 		for (const entry of personPayload) {
 			const flattened = flattenPerson(entry);
@@ -137,18 +137,7 @@ function extractPersonsFromBody(body: unknown): IDataObject[] {
 
 function formatRequestPayload(this: IWebhookFunctions): IDataObject {
 	const request = this.getRequestObject();
-	const rawBody = (request as unknown as { rawBody?: Buffer | string }).rawBody;
-	const payload: IDataObject = {
-		body: request.body ?? {},
-		headers: request.headers ?? {},
-		query: request.query ?? {},
-	};
-	if (typeof rawBody === 'string') {
-		payload.rawBody = rawBody;
-	} else if (Buffer.isBuffer(rawBody)) {
-		payload.rawBody = rawBody.toString();
-	}
-	return payload;
+	return request.body ?? {};
 }
 
 function buildWebhookOutput(this: IWebhookFunctions, feature: FeatureName): IDataObject[] {
@@ -195,17 +184,15 @@ export class LeadspickerTrigger implements INodeType {
 				displayName: 'Event',
 				name: 'feature',
 				type: 'options',
-				required: true,
 				default: '',
+				required: true,
+				default: FEATURE_OPTIONS[0].value,
 				noDataExpression: true,
-				options: [
-					{ name: 'Select an event...', value: '', description: 'Choose at least one feature' },
-					...FEATURE_OPTIONS.map((option) => ({
-						name: option.name,
-						value: option.value,
-						description: option.description,
-					})),
-				],
+				options: FEATURE_OPTIONS.map((option) => ({
+					name: option.name,
+					value: option.value,
+					description: option.description,
+				})),
 				description: 'Leadspicker event type to subscribe to',
 			},
 			{
