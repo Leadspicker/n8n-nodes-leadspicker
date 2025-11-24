@@ -192,18 +192,20 @@ export class LeadspickerTrigger implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Feature',
+				displayName: 'Event',
 				name: 'feature',
 				type: 'options',
-				default: '',
 				required: true,
-				default: FEATURE_OPTIONS[0].value,
+				default: '',
 				noDataExpression: true,
-				options: FEATURE_OPTIONS.map((option) => ({
-					name: option.name,
-					value: option.value,
-					description: option.description,
-				})),
+				options: [
+					{ name: 'Select an event...', value: '', description: 'Choose at least one feature' },
+					...FEATURE_OPTIONS.map((option) => ({
+						name: option.name,
+						value: option.value,
+						description: option.description,
+					})),
+				],
 				description: 'Leadspicker event type to subscribe to',
 			},
 			{

@@ -37,8 +37,8 @@
       "dist/credentials/LeadspickerApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/LeadspickerNode/LeadspickerNode.node.js",
-      "dist/nodes/LeadspickerNode/LeadspickerTrigger.node.js"
+      "dist/nodes/Leadspicker/Leadspicker.node.js",
+      "dist/nodes/Leadspicker/LeadspickerTrigger.node.js"
     ]
   },
   "devDependencies": {

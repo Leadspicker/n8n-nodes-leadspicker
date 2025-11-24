@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import type { IExecuteFunctions } from 'n8n-workflow';
-import { LeadspickerNode } from '../nodes/LeadspickerNode/LeadspickerNode.node';
+import { Leadspicker } from '../nodes/Leadspicker/Leadspicker.node';
 
 type ParamMap = Record<string, unknown>;
 
@@ -41,10 +41,10 @@ function buildPayload(overrides: ParamMap = {}) {
 		params.customFields = { field: [] };
 	}
 	const context = createTestContext(params);
-	return (LeadspickerNode as any).buildLeadPayload(context, 0) as Record<string, unknown>;
+	return (Leadspicker as any).buildLeadPayload(context, 0) as Record<string, unknown>;
 }
 
-describe('LeadspickerNode.buildLeadPayload', () => {
+describe('Leadspicker.buildLeadPayload', () => {
 	it('builds payload from direct fields', () => {
 		const payload = buildPayload({
 			leadFirstName: 'Jane',
