@@ -135,9 +135,23 @@ function extractPersonsFromBody(body: unknown): IDataObject[] {
 	return persons;
 }
 
+function normalizeRequestBody(body: unknown): IDataObject {
+	if (!isPlainObject(body)) {
+		return (body ?? {}) as IDataObject;
+	}
+	const payload = { ...body } as IDataObject;
+	if (isPlainObject(payload.person)) {
+		const flattened = flattenPerson(payload.person);
+		if (flattened) {
+			payload.person = flattened;
+		}
+	}
+	return payload;
+}
+
 function formatRequestPayload(this: IWebhookFunctions): IDataObject {
 	const request = this.getRequestObject();
-	return request.body ?? {};
+	return normalizeRequestBody(request.body ?? {});
 }
 
 function buildWebhookOutput(this: IWebhookFunctions, feature: FeatureName): IDataObject[] {
