@@ -17,7 +17,7 @@ export class LeadspickerApi implements ICredentialType {
 			default: '',
 			typeOptions: {
 				password: true,
-			}
+			},
 		},
 		{
 			displayName: 'Domain',
@@ -36,7 +36,7 @@ export class LeadspickerApi implements ICredentialType {
 		type: 'generic',
 		properties: {
 			headers: {
-				"X-API-Key": '={{$credentials.token}}',
+				'X-API-Key': '={{$credentials.token}}',
 			},
 		},
 	};
@@ -49,4 +49,3 @@ export class LeadspickerApi implements ICredentialType {
 		},
 	};
 }
-

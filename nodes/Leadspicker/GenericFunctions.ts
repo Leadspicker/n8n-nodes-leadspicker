@@ -1,8 +1,11 @@
 import type {
 	IExecuteFunctions,
+	IHookFunctions,
 	IDataObject,
 	IHttpRequestMethods,
+	ILoadOptionsFunctions,
 	IRequestOptions,
+	IWebhookFunctions,
 } from 'n8n-workflow';
 
 const RATE_LIMIT_THRESHOLD = 10;
@@ -14,7 +17,7 @@ type ConsoleLogger = {
 	log: (...args: unknown[]) => void;
 };
 
-function logToConsole(message: string, payload: Record<string, unknown>) {
+export function logToConsole(message: string, payload: Record<string, unknown>) {
 	const consoleLogger = (globalThis as { console?: ConsoleLogger }).console;
 	if (!consoleLogger) {
 		return;
@@ -75,7 +78,7 @@ function getStatusCode(error: unknown) {
 }
 
 export async function leadspickerApiRequest(
-	this: IExecuteFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions | IWebhookFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},
@@ -95,7 +98,11 @@ export async function leadspickerApiRequest(
 
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
 		try {
-			const response = await this.helpers.requestWithAuthentication.call(this, 'leadspickerApi', options);
+			const response = await this.helpers.requestWithAuthentication.call(
+				this,
+				'leadspickerApi',
+				options,
+			);
 			const statusCode = typeof response.statusCode === 'number' ? response.statusCode : undefined;
 			logToConsole('Leadspicker API request completed', {
 				attempt: attempt + 1,
@@ -115,7 +122,7 @@ export async function leadspickerApiRequest(
 			return response.body;
 		} catch (error) {
 			const statusCode = getStatusCode(error);
-			if (statusCode === "429" && attempt < MAX_RETRIES - 1) {
+			if (statusCode === '429' && attempt < MAX_RETRIES - 1) {
 				logToConsole('Leadspicker retry scheduled after rate limit response', {
 					attempt: attempt + 1,
 					delayMs: RETRY_DELAY_MS,
@@ -142,4 +149,8 @@ export function getUserTimezone(): string {
 	} catch {
 		return 'Europe/Prague';
 	}
+}
+
+export function isPlainObject(value: unknown): value is IDataObject {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

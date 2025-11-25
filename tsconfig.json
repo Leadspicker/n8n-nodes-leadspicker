@@ -19,12 +19,14 @@
 		"declaration": true,
 		"sourceMap": true,
 		"skipLibCheck": true,
+		"types": ["node", "mocha"],
 		"outDir": "./dist/",
 	},
 	"include": [
 		"credentials/**/*",
 		"nodes/**/*",
 		"nodes/**/*.json",
+		"tests/**/*",
 		"package.json",
 	],
 }

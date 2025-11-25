@@ -1,0 +1,27 @@
+repos:
+
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: check-yaml
+    -   id: debug-statements
+
+-   repo: https://github.com/pre-commit/mirrors-eslint
+    rev: 'v8.33.0'  # Use the sha / tag you want to point at
+    hooks:
+    -   id: eslint
+        name: eslint
+        entry: eslint
+        language: node
+        types: [file]
+        types_or: [javascript, jsx, ts, tsx, vue]
+        args: ['--fix']
+        require_serial: false
+        additional_dependencies:
+        - "eslint@8.57.0"
+        - "@typescript-eslint/parser@8.32.0"
+        - "eslint-plugin-prettier@5.2.1"
+        - "eslint-config-prettier@9.1.0"
+        - "prettier@3.5.3"
+        - "eslint-plugin-n8n-nodes-base@1.16.3"
