@@ -189,7 +189,10 @@ export class Leadspicker implements INodeType {
 		return clone;
 	}
 
-	private static extractItemsFromFinderResponse(response: unknown, key_name: string): IDataObject[] {
+	private static extractItemsFromFinderResponse(
+		response: unknown,
+		key_name: string,
+	): IDataObject[] {
 		if (!isPlainObject(response)) return [];
 
 		const items: IDataObject[] = [];
@@ -660,7 +663,7 @@ export class Leadspicker implements INodeType {
 					body,
 					{},
 				);
-				return Leadspicker.extractItemsFromFinderResponse(response, "persons");
+				return Leadspicker.extractItemsFromFinderResponse(response, 'persons');
 			}
 			case 'byCompanyName': {
 				const companyName = context.getNodeParameter('companyName', i) as string;
@@ -692,7 +695,7 @@ export class Leadspicker implements INodeType {
 					body,
 					{},
 				);
-				return Leadspicker.extractItemsFromFinderResponse(response, "persons");
+				return Leadspicker.extractItemsFromFinderResponse(response, 'persons');
 			}
 			default:
 				throw new NodeOperationError(
@@ -711,37 +714,47 @@ export class Leadspicker implements INodeType {
 	): Promise<any> {
 		const operation = context.getNodeParameter('operation', i) as string;
 
-			switch (operation) {
-				case 'getProfile': {
-					const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
-					const body: IDataObject = { linkedin_url: linkedinUrl };
-					const selectableCards: Array<{ apiValue: string; paramName: string }> = [
-						{ apiValue: 'activity', paramName: 'includeActivityCard' },
-						{ apiValue: 'adjacent', paramName: 'includeAdjacentCard' },
-						{ apiValue: 'education', paramName: 'includeEducationCard' },
-						{ apiValue: 'experience', paramName: 'includeExperienceCard' },
-						{ apiValue: 'followers', paramName: 'includeFollowersCard' },
-						{ apiValue: 'location', paramName: 'includeLocationCard' },
-						{ apiValue: 'overview', paramName: 'includeOverviewCard' },
-						{ apiValue: 'skills', paramName: 'includeSkillsCard' },
-					];
-					const selectedCards = selectableCards
-						.filter((card) => context.getNodeParameter(card.paramName, i, false) as boolean)
-						.map((card) => card.apiValue);
-					if (selectedCards.length) body.cards = selectedCards;
-					return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-profile', body);
-				}
+		switch (operation) {
+			case 'getProfile': {
+				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
+				const body: IDataObject = { linkedin_url: linkedinUrl };
+				const selectableCards: Array<{ apiValue: string; paramName: string }> = [
+					{ apiValue: 'activity', paramName: 'includeActivityCard' },
+					{ apiValue: 'adjacent', paramName: 'includeAdjacentCard' },
+					{ apiValue: 'education', paramName: 'includeEducationCard' },
+					{ apiValue: 'experience', paramName: 'includeExperienceCard' },
+					{ apiValue: 'followers', paramName: 'includeFollowersCard' },
+					{ apiValue: 'location', paramName: 'includeLocationCard' },
+					{ apiValue: 'overview', paramName: 'includeOverviewCard' },
+					{ apiValue: 'skills', paramName: 'includeSkillsCard' },
+				];
+				const selectedCards = selectableCards
+					.filter((card) => context.getNodeParameter(card.paramName, i, false) as boolean)
+					.map((card) => card.apiValue);
+				if (selectedCards.length) body.cards = selectedCards;
+				return leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-profile', body);
+			}
 			case 'getPosts': {
 				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
 				const body: IDataObject = { linkedin_url: linkedinUrl };
-				const response = await leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-posts', body);
-				return Leadspicker.extractItemsFromFinderResponse(response, "posts");
+				const response = await leadspickerApiRequest.call(
+					context,
+					'POST',
+					'/utils/linkedin-posts',
+					body,
+				);
+				return Leadspicker.extractItemsFromFinderResponse(response, 'posts');
 			}
 			case 'getActivities': {
 				const linkedinUrl = context.getNodeParameter('linkedinUrl', i) as string;
 				const body: IDataObject = { linkedin_url: linkedinUrl };
-				const response = await leadspickerApiRequest.call(context, 'POST', '/utils/linkedin-activities', body);
-				return Leadspicker.extractItemsFromFinderResponse(response, "activities");
+				const response = await leadspickerApiRequest.call(
+					context,
+					'POST',
+					'/utils/linkedin-activities',
+					body,
+				);
+				return Leadspicker.extractItemsFromFinderResponse(response, 'activities');
 			}
 			case 'getPostReactors': {
 				const webhookUrl = context.getNodeParameter('webhookUrl', i) as string;
@@ -772,8 +785,16 @@ export class Leadspicker implements INodeType {
 			}
 			case 'searchPostReactors': {
 				const searchUrl = context.getNodeParameter('searchUrl', i) as string;
-				const includeSearchLikers = context.getNodeParameter('includeSearchLikers', i, false) as boolean;
-				const includeSearchCommenters = context.getNodeParameter('includeSearchCommenters', i, false) as boolean;
+				const includeSearchLikers = context.getNodeParameter(
+					'includeSearchLikers',
+					i,
+					false,
+				) as boolean;
+				const includeSearchCommenters = context.getNodeParameter(
+					'includeSearchCommenters',
+					i,
+					false,
+				) as boolean;
 				const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
 
 				const commentersPerPost = includeSearchCommenters
@@ -813,31 +834,39 @@ export class Leadspicker implements INodeType {
 
 				return results;
 			}
-				case 'profilesPostReactors': {
-					const profilesList = context.getNodeParameter('profilesList', i, {}) as {
-						profiles?: { url: string }[];
-					};
-					const includePostLikers = context.getNodeParameter('includePostLikers', i, false) as boolean;
-					const includePostCommenters = context.getNodeParameter('includePostCommenters', i, false) as boolean;
-					const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
+			case 'profilesPostReactors': {
+				const profilesList = context.getNodeParameter('profilesList', i, {}) as {
+					profiles?: { url: string }[];
+				};
+				const includePostLikers = context.getNodeParameter(
+					'includePostLikers',
+					i,
+					false,
+				) as boolean;
+				const includePostCommenters = context.getNodeParameter(
+					'includePostCommenters',
+					i,
+					false,
+				) as boolean;
+				const options = context.getNodeParameter('reactorsSearchOptions', i, {}) as IDataObject;
 
-					const profiles = (profilesList.profiles || [])
-						.map((p) => p.url)
-						.filter((u) => u && u.trim() !== '');
+				const profiles = (profilesList.profiles || [])
+					.map((p) => p.url)
+					.filter((u) => u && u.trim() !== '');
 
-					const commentersPerPost = includePostCommenters
-						? 10
-						: ((options.commentersPerPost as number) ?? 0);
-					const likersPerPost = includePostLikers ? 10 : ((options.likersPerPost as number) ?? 0);
-					const baseBody: IDataObject = {
-						profiles,
-						include_author: (options.includeAuthor as boolean) ?? false,
-						commenters_per_post: commentersPerPost,
-						likers_per_post: likersPerPost,
-						max_age_days: (options.maxAgeDays as number) ?? 90,
-						posts_limit: (options.postsLimit as number) ?? 30,
-						deduplicate: (options.deduplicate as boolean) ?? false,
-					};
+				const commentersPerPost = includePostCommenters
+					? 10
+					: ((options.commentersPerPost as number) ?? 0);
+				const likersPerPost = includePostLikers ? 10 : ((options.likersPerPost as number) ?? 0);
+				const baseBody: IDataObject = {
+					profiles,
+					include_author: (options.includeAuthor as boolean) ?? false,
+					commenters_per_post: commentersPerPost,
+					likers_per_post: likersPerPost,
+					max_age_days: (options.maxAgeDays as number) ?? 90,
+					posts_limit: (options.postsLimit as number) ?? 30,
+					deduplicate: (options.deduplicate as boolean) ?? false,
+				};
 
 				let cursor: string | null = null;
 				const results: IDataObject[] = [];

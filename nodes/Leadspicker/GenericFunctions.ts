@@ -98,7 +98,11 @@ export async function leadspickerApiRequest(
 
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
 		try {
-			const response = await this.helpers.requestWithAuthentication.call(this, 'leadspickerApi', options);
+			const response = await this.helpers.requestWithAuthentication.call(
+				this,
+				'leadspickerApi',
+				options,
+			);
 			const statusCode = typeof response.statusCode === 'number' ? response.statusCode : undefined;
 			logToConsole('Leadspicker API request completed', {
 				attempt: attempt + 1,
@@ -118,7 +122,7 @@ export async function leadspickerApiRequest(
 			return response.body;
 		} catch (error) {
 			const statusCode = getStatusCode(error);
-			if (statusCode === "429" && attempt < MAX_RETRIES - 1) {
+			if (statusCode === '429' && attempt < MAX_RETRIES - 1) {
 				logToConsole('Leadspicker retry scheduled after rate limit response', {
 					attempt: attempt + 1,
 					delayMs: RETRY_DELAY_MS,

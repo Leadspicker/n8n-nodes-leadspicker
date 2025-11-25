@@ -21,12 +21,24 @@ const WEBHOOK_NAME_FALLBACK = 'N8N Leadspicker Webhook';
 
 const FEATURE_OPTIONS = [
 	{ name: 'Account Revoked', value: 'account_revoked', description: 'Linked account was revoked' },
-	{ name: 'Email Bounced', value: 'email_bounced', description: 'Leadspicker reports a bounced email' },
+	{
+		name: 'Email Bounced',
+		value: 'email_bounced',
+		description: 'Leadspicker reports a bounced email',
+	},
 	{ name: 'Email Reply', value: 'email_reply', description: 'Reply received on a sent email' },
-	{ name: 'Email Sent', value: 'email_sent', description: 'Trigger when Leadspicker delivers an email' },
+	{
+		name: 'Email Sent',
+		value: 'email_sent',
+		description: 'Trigger when Leadspicker delivers an email',
+	},
 	{ name: 'LinkedIn Reply', value: 'linkedin_reply', description: 'Reply received on LinkedIn' },
 	{ name: 'LinkedIn Sent', value: 'linkedin_sent', description: 'LinkedIn outreach sent' },
-	{ name: 'Lead Added', value: 'person_added', description: 'Trigger when a new lead is added to the project' },
+	{
+		name: 'Lead Added',
+		value: 'person_added',
+		description: 'Trigger when a new lead is added to the project',
+	},
 ] as const;
 
 type FeatureName = (typeof FEATURE_OPTIONS)[number]['value'];
@@ -97,13 +109,14 @@ function extractWebhookId(record: unknown): number | undefined {
 	return toNumericId(record);
 }
 
-
 function flattenPerson(person: unknown): IDataObject | undefined {
 	if (!isPlainObject(person)) {
 		return undefined;
 	}
 	const flattened: IDataObject = {};
-	const details = isPlainObject(person.person_data) ? (person.person_data as IDataObject) : undefined;
+	const details = isPlainObject(person.person_data)
+		? (person.person_data as IDataObject)
+		: undefined;
 	if (details) {
 		for (const [key, value] of Object.entries(details)) {
 			flattened[key] = value as IDataObject;
@@ -230,7 +243,8 @@ export class LeadspickerTrigger implements INodeType {
 				typeOptions: {
 					loadOptionsMethod: 'getCampaigns',
 				},
-				description: 'Choose from the list, specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>, or leave empty to listen to all projects. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description:
+					'Choose from the list, specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>, or leave empty to listen to all projects. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Project ID',
@@ -278,7 +292,10 @@ export class LeadspickerTrigger implements INodeType {
 			async checkExists(this: IHookFunctions): Promise<boolean> {
 				const webhookUrl = this.getNodeWebhookUrl('default');
 				const feature = getSelectedFeature(this);
-				logToConsole(`Checking if webhook with URL "${webhookUrl}" exists...`, { webhookUrl, feature });
+				logToConsole(`Checking if webhook with URL "${webhookUrl}" exists...`, {
+					webhookUrl,
+					feature,
+				});
 				const projectId = getProjectIdIfSelected(this);
 				const response = await leadspickerApiRequest.call(this, 'GET', '/webhooks');
 				const availableWebhooks = normalizeWebhookList(response);
@@ -313,7 +330,8 @@ export class LeadspickerTrigger implements INodeType {
 				logToConsole('Creating Leadspicker webhook...', { feature });
 				const webhookUrl = this.getNodeWebhookUrl('default');
 				const projectId = getProjectIdIfSelected(this);
-				const webhookName = (this.getNodeParameter('webhookName') as string)?.trim() || WEBHOOK_NAME_FALLBACK;
+				const webhookName =
+					(this.getNodeParameter('webhookName') as string)?.trim() || WEBHOOK_NAME_FALLBACK;
 				const payload: IDataObject = {
 					name: webhookName,
 					url: webhookUrl,
@@ -333,7 +351,9 @@ export class LeadspickerTrigger implements INodeType {
 			},
 			async delete(this: IHookFunctions): Promise<boolean> {
 				logToConsole('Deleting Leadspicker webhook...', {});
-				const staticData = this.getWorkflowStaticData('node') as IDataObject & { webhookId?: number };
+				const staticData = this.getWorkflowStaticData('node') as IDataObject & {
+					webhookId?: number;
+				};
 				const webhookId = staticData.webhookId;
 				if (webhookId === undefined) {
 					return true;
