@@ -49,7 +49,7 @@ function toNumericId(value: unknown): number | undefined {
 	return undefined;
 }
 
-function getProjectIdOrThrow(context: IHookFunctions | IWebhookFunctions): number {
+function getProjectIdIfSelected(context: IHookFunctions | IWebhookFunctions): number | undefined {
 	const selection = context.getNodeParameter('projectId') as NodeParameterValueType;
 	if (selection === MANUAL_ID_OPTION) {
 		const manualValue = context.getNodeParameter('projectIdManual');
@@ -58,6 +58,9 @@ function getProjectIdOrThrow(context: IHookFunctions | IWebhookFunctions): numbe
 			throw new NodeOperationError(context.getNode(), 'Please enter a valid project ID.');
 		}
 		return id;
+	}
+	if (selection === undefined || selection === null || selection === '') {
+		return undefined;
 	}
 	const id = toNumericId(selection);
 	if (id === undefined) {
@@ -220,17 +223,15 @@ export class LeadspickerTrigger implements INodeType {
 				displayName: 'Project Name or ID',
 				name: 'projectId',
 				type: 'options',
-				required: true,
 				default: '',
 				options: [
-					{ name: 'Select a project...', value: '' },
+					{ name: 'All Projects (Default)', value: '' },
 					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
 				],
 				typeOptions: {
 					loadOptionsMethod: 'getCampaigns',
 				},
-				description:
-					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				description: 'Choose from the list, specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>, or leave empty to listen to all projects. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Project ID',
@@ -279,7 +280,7 @@ export class LeadspickerTrigger implements INodeType {
 				const webhookUrl = this.getNodeWebhookUrl('default');
 				const feature = getSelectedFeature(this);
 				logToConsole(`Checking if webhook with URL "${webhookUrl}" exists...`, { webhookUrl, feature });
-				const projectId = getProjectIdOrThrow(this);
+				const projectId = getProjectIdIfSelected(this);
 				const response = await leadspickerApiRequest.call(this, 'GET', '/webhooks');
 				const availableWebhooks = normalizeWebhookList(response);
 				const match = availableWebhooks.find((entry) => {
@@ -289,10 +290,14 @@ export class LeadspickerTrigger implements INodeType {
 					if (!Array.isArray(entry.features) || !entry.features.includes(feature)) {
 						return false;
 					}
-					if (!Array.isArray(entry.project_ids)) {
+					const projectIds = Array.isArray(entry.project_ids) ? entry.project_ids : null;
+					if (projectId === undefined) {
+						return !projectIds || projectIds.length === 0;
+					}
+					if (!projectIds) {
 						return false;
 					}
-					return entry.project_ids.some((value) => toNumericId(value) === projectId);
+					return projectIds.some((value) => toNumericId(value) === projectId);
 				});
 				if (!match) {
 					return false;
@@ -308,14 +313,16 @@ export class LeadspickerTrigger implements INodeType {
 				const feature = getSelectedFeature(this);
 				logToConsole('Creating Leadspicker webhook...', { feature });
 				const webhookUrl = this.getNodeWebhookUrl('default');
-				const projectId = getProjectIdOrThrow(this);
+				const projectId = getProjectIdIfSelected(this);
 				const webhookName = (this.getNodeParameter('webhookName') as string)?.trim() || WEBHOOK_NAME_FALLBACK;
 				const payload: IDataObject = {
 					name: webhookName,
 					url: webhookUrl,
 					features: [feature],
-					project_ids: [projectId],
 				};
+				if (projectId !== undefined) {
+					payload.project_ids = [projectId];
+				}
 				const response = await leadspickerApiRequest.call(this, 'POST', '/webhooks', payload);
 				const webhookId = extractWebhookId(response);
 				if (webhookId === undefined) {
