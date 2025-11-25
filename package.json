@@ -1,64 +1,66 @@
 {
-  "name": "@leadspicker/n8n-nodes-leadspicker",
-  "version": "0.4.0",
-  "description": "Leadspicker's n8n nodes package for integrating with Leadspicker's API.",
-  "keywords": [
-    "n8n-community-node-package"
-  ],
-  "license": "MIT",
-  "homepage": "https://www.leadspicker.com/",
-  "author": {
-    "name": "Vojtěch Oram",
-    "email": "vojtech@leadspicker.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Leadspicker/n8n-nodes-leadspicker.git"
-  },
-  "engines": {
-    "node": ">=20.15"
-  },
-  "main": "index.js",
-  "scripts": {
-    "build": "npx rimraf dist && tsc && gulp build:icons",
-    "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
+	"name": "@leadspicker/n8n-nodes-leadspicker",
+	"version": "0.4.0",
+	"description": "Leadspicker's n8n nodes package for integrating with Leadspicker's API.",
+	"keywords": [
+		"n8n-community-node-package"
+	],
+	"license": "MIT",
+	"homepage": "https://www.leadspicker.com/",
+	"author": {
+		"name": "Vojtěch Oram",
+		"email": "vojtech@leadspicker.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Leadspicker/n8n-nodes-leadspicker.git"
+	},
+	"engines": {
+		"node": ">=20.15"
+	},
+	"main": "index.js",
+	"scripts": {
+		"build": "npx rimraf dist && tsc && gulp build:icons",
+		"dev": "tsc --watch",
+		"format": "prettier nodes credentials --write",
+		"lint": "eslint nodes credentials package.json",
+		"lintfix": "eslint nodes credentials package.json --fix",
 		"test": "tsc --project tsconfig.json && mocha \"dist/tests/**/*.test.js\"",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
-  },
-  "files": [
-    "dist"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/LeadspickerApi.credentials.js"
-    ],
-    "nodes": [
-      "dist/nodes/Leadspicker/Leadspicker.node.js",
-      "dist/nodes/Leadspicker/LeadspickerTrigger.node.js"
-    ]
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^24.10.1",
-    "@typescript-eslint/parser": "~8.32.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.3",
-    "gulp": "^5.0.0",
-    "mocha": "^11.7.5",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.2"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  },
-  "dependencies": {
-    "moment-timezone": "^0.6.0"
-  },
-  "bugs": {
-    "url": "https://github.com/Leadspicker/n8n-nodes-leadspicker/issues"
-  }
+		"prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"credentials": [
+			"dist/credentials/LeadspickerApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Leadspicker/Leadspicker.node.js",
+			"dist/nodes/Leadspicker/LeadspickerTrigger.node.js"
+		]
+	},
+	"devDependencies": {
+		"@types/mocha": "^10.0.10",
+		"@types/node": "^24.10.1",
+		"@typescript-eslint/parser": "~8.32.0",
+		"eslint": "^8.57.0",
+		"eslint-config-prettier": "^9.1.0",
+		"eslint-plugin-n8n-nodes-base": "^1.16.3",
+		"eslint-plugin-prettier": "^5.2.1",
+		"gulp": "^5.0.0",
+		"mocha": "^11.7.5",
+		"prettier": "^3.5.3",
+		"typescript": "^5.8.2"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	},
+	"dependencies": {
+		"moment-timezone": "^0.6.0"
+	},
+	"bugs": {
+		"url": "https://github.com/Leadspicker/n8n-nodes-leadspicker/issues"
+	}
 }

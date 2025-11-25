@@ -4,6 +4,10 @@
 module.exports = {
 	root: true,
 
+	extends: ['plugin:prettier/recommended'],
+
+	plugins: ['prettier'],
+
 	env: {
 		browser: true,
 		es6: true,
@@ -18,7 +22,7 @@ module.exports = {
 		extraFileExtensions: ['.json'],
 	},
 
-	ignorePatterns: ['.eslintrc.js', '**/*.js', '**/node_modules/**', '**/dist/**'],
+	ignorePatterns: ['.eslintrc.js', '**/node_modules/**', '**/dist/**'],
 
 	overrides: [
 		{
