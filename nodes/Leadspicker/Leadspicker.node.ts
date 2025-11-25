@@ -112,11 +112,13 @@ export class Leadspicker implements INodeType {
 	private static getCampaignIdForLeadOptions(context: ILoadOptionsFunctions): number | undefined {
 		const params = (context.getCurrentNodeParameters?.() ?? {}) as IDataObject;
 		return (
+			Leadspicker.tryGetIdFromParameters(params, 'projectLogId', 'projectLogIdManual') ??
 			Leadspicker.tryGetIdFromParameters(
 				params,
 				'personLookupProjectId',
 				'personLookupProjectIdManual',
-			) ?? Leadspicker.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
+			) ??
+			Leadspicker.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
 		);
 	}
 
@@ -521,6 +523,87 @@ export class Leadspicker implements INodeType {
 					i,
 				);
 				return leadspickerApiRequest.call(context, 'DELETE', `/projects/${campaignId}`);
+			}
+			case 'getCampaignLog': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectLogId',
+					'projectLogIdManual',
+					'project',
+					i,
+				);
+				const search = context.getNodeParameter('projectLogSearch', i, '') as string;
+				const startDate = context.getNodeParameter('projectLogStartDate', i, '') as string;
+				const endDate = context.getNodeParameter('projectLogEndDate', i, '') as string;
+				const personSelection = context.getNodeParameter(
+					'projectLogPersonId',
+					i,
+					'',
+				) as NodeParameterValueType;
+				let personId: number | undefined;
+				if (personSelection === MANUAL_ID_OPTION) {
+					const manualValue = context.getNodeParameter('projectLogPersonIdManual', i);
+					personId = Leadspicker.toNumericId(manualValue);
+				} else {
+					personId = Leadspicker.toNumericId(personSelection);
+				}
+				const eventTypes = context.getNodeParameter('projectLogEventTypes', i, []) as string[];
+				const outreachStepTypes = context.getNodeParameter(
+					'projectLogOutreachStepTypes',
+					i,
+					[],
+				) as string[];
+				const queryParts: string[] = [`page=1`, `page_size=${DEFAULT_PAGE_SIZE}`];
+				const addParam = (key: string, value: string | number) => {
+					queryParts.push(`${key}=${encodeURIComponent(value.toString())}`);
+				};
+				if (typeof search === 'string' && search.trim() !== '') {
+					addParam('search', search.trim());
+				}
+				if (typeof startDate === 'string' && startDate.trim() !== '') {
+					addParam('start_date', startDate.trim());
+				}
+				if (typeof endDate === 'string' && endDate.trim() !== '') {
+					addParam('end_date', endDate.trim());
+				}
+				if (personId !== undefined) {
+					addParam('person_id', personId);
+				}
+				if (Array.isArray(eventTypes)) {
+					for (const type of eventTypes) {
+						if (typeof type === 'string' && type.trim() !== '') {
+							addParam('event_types', type);
+						}
+					}
+				}
+				if (Array.isArray(outreachStepTypes)) {
+					for (const type of outreachStepTypes) {
+						if (typeof type === 'string') {
+							addParam('outreach_step_types', type);
+						}
+					}
+				}
+				let path = `/projects/${campaignId}/events`;
+				if (queryParts.length > 0) {
+					path += `?${queryParts.join('&')}`;
+				}
+				const response = (await leadspickerApiRequest.call(
+					context,
+					'GET',
+					path,
+					{},
+					{},
+				)) as IDataObject;
+				if (Array.isArray(response?.results)) {
+					return response.results as IDataObject[];
+				}
+				if (Array.isArray(response?.items)) {
+					return response.items as IDataObject[];
+				}
+				if (Array.isArray(response)) {
+					return response as IDataObject[];
+				}
+				return [];
 			}
 			default:
 				throw new NodeOperationError(
