@@ -17,7 +17,7 @@ import { isPlainObject, leadspickerApiRequest, logToConsole } from './GenericFun
 
 const MANUAL_ID_OPTION = '__manual__';
 const WEBHOOK_PATH = 'leadspicker';
-const WEBHOOK_NAME_FALLBACK = 'Leadspicker Webhook';
+const WEBHOOK_NAME_FALLBACK = 'N8N Leadspicker Webhook';
 
 const FEATURE_OPTIONS = [
 	{ name: 'Account Revoked', value: 'account_revoked', description: 'Linked account was revoked' },
