@@ -67,6 +67,12 @@ export const campaignOperations: INodeProperties[] = [
 		},
 		options: [
 			{
+				name: 'Add Lead to Campaign Exclusion List',
+				value: 'addToExclusionList',
+				description: 'Blacklist a lead identifier for a campaign',
+				action: 'Add lead to exclusion list',
+			},
+			{
 				name: 'Create Campaign',
 				value: 'create',
 				description: 'Create a new campaign',
@@ -83,6 +89,18 @@ export const campaignOperations: INodeProperties[] = [
 				value: 'getCampaignLog',
 				description: 'Retrieve campaign timeline events',
 				action: 'Get campaign log',
+			},
+			{
+				name: 'Get Exclusion List',
+				value: 'getExclusionList',
+				description: 'Retrieve all identifiers blacklisted for a campaign',
+				action: 'Get exclusion list',
+			},
+			{
+				name: 'Remove Lead From Campaign Exclusion List',
+				value: 'removeFromExclusionList',
+				description: 'Delete a specific identifier from a campaign blacklist',
+				action: 'Remove lead from exclusion list',
 			},
 		],
 		default: 'create',
@@ -164,6 +182,59 @@ export const campaignFields: INodeProperties[] = [
 		},
 		default: 0,
 		description: 'ID of the campaign to delete',
+	},
+	{
+		displayName: 'Campaign Name or ID',
+		name: 'projectBlacklistId',
+		type: 'options',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['addToExclusionList', 'getExclusionList', 'removeFromExclusionList'],
+			},
+		},
+		default: '',
+		typeOptions: {
+			loadOptionsMethod: 'getCampaigns',
+		},
+		options: [
+			{ name: 'Select a campaign...', value: '' },
+			{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
+		],
+		description:
+			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+	},
+	{
+		displayName: 'Campaign ID',
+		name: 'projectBlacklistIdManual',
+		type: 'number',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['addToExclusionList', 'getExclusionList', 'removeFromExclusionList'],
+				projectBlacklistId: [MANUAL_ID_OPTION],
+			},
+		},
+		default: 0,
+		description: 'ID of the campaign whose exclusion list will be updated or retrieved',
+	},
+	{
+		displayName: 'Identifier to Exclude',
+		name: 'blacklistEntry',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['addToExclusionList', 'removeFromExclusionList'],
+			},
+		},
+		default: '',
+		placeholder: 'linkedin.com/in/example, someone@example.com, example.com',
+		description:
+			'LinkedIn profile, email, domain, or company profile URL to add or remove from the exclusion list',
 	},
 	{
 		displayName: 'Campaign Name or ID',

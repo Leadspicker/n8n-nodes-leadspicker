@@ -524,6 +524,67 @@ export class Leadspicker implements INodeType {
 				);
 				return leadspickerApiRequest.call(context, 'DELETE', `/projects/${campaignId}`);
 			}
+			case 'addToExclusionList': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectBlacklistId',
+					'projectBlacklistIdManual',
+					'project',
+					i,
+				);
+				const blacklistEntry = context.getNodeParameter('blacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to blacklist.',
+					);
+				}
+				const body: IDataObject = { data: trimmedEntry };
+				const query: IDataObject = { append: true };
+				return leadspickerApiRequest.call(
+					context,
+					'PUT',
+					`/projects/${campaignId}/blacklist-text`,
+					body,
+					query,
+				);
+			}
+			case 'removeFromExclusionList': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectBlacklistId',
+					'projectBlacklistIdManual',
+					'project',
+					i,
+				);
+				const blacklistEntry = context.getNodeParameter('blacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to remove from the blacklist.',
+					);
+				}
+				const query: IDataObject = { identifier: trimmedEntry };
+				return leadspickerApiRequest.call(
+					context,
+					'DELETE',
+					`/projects/${campaignId}/blacklist-text`,
+					{},
+					query,
+				);
+			}
+			case 'getExclusionList': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectBlacklistId',
+					'projectBlacklistIdManual',
+					'project',
+					i,
+				);
+				return leadspickerApiRequest.call(context, 'GET', `/projects/${campaignId}/blacklist-text`);
+			}
 			case 'getCampaignLog': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(
 					context,
