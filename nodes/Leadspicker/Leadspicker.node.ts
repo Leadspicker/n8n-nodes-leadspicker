@@ -24,6 +24,7 @@ import {
 	leadOperations,
 	linkedinActivityFields,
 	linkedinActivityOperations,
+	outreachOperations,
 	globalExclusionListFields,
 	globalExclusionListOperations,
 	replyFields,
@@ -371,7 +372,7 @@ export class Leadspicker implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle:
-			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
+			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
 		defaults: {
 			name: 'Leadspicker',
@@ -409,6 +410,10 @@ export class Leadspicker implements INodeType {
 						value: 'linkedinActivity',
 					},
 					{
+						name: 'Outreach',
+						value: 'outreach',
+					},
+					{
 						name: 'Reply',
 						value: 'reply',
 					},
@@ -420,6 +425,7 @@ export class Leadspicker implements INodeType {
 			...replyOperations,
 			...linkedinActivityOperations,
 			...globalExclusionListOperations,
+			...outreachOperations,
 			...campaignFields,
 			...globalExclusionListFields,
 			...leadFields,
@@ -1117,6 +1123,28 @@ export class Leadspicker implements INodeType {
 	}
 
 	/**
+	 * Handles operations for the 'Outreach' resource.
+	 */
+	private static async handleOutreachOperations(
+		context: IExecuteFunctions,
+		i: number,
+	): Promise<any> {
+		const operation = context.getNodeParameter('operation', i) as string;
+
+		switch (operation) {
+			case 'getLinkedinAccounts':
+				return leadspickerApiRequest.call(context, 'GET', '/linkedin-accounts');
+			case 'getEmailAccounts':
+				return leadspickerApiRequest.call(context, 'GET', '/email-accounts');
+			default:
+				throw new NodeOperationError(
+					context.getNode(),
+					`The operation "${operation}" is not supported for Outreach resource.`,
+				);
+		}
+	}
+
+	/**
 	 * Handles operations for the 'Global Exclusion List' resource.
 	 */
 	private static async handleGlobalExclusionListOperations(
@@ -1227,6 +1255,9 @@ export class Leadspicker implements INodeType {
 						break;
 					case 'globalExclusionList':
 						responseData = await Leadspicker.handleGlobalExclusionListOperations(this, i);
+						break;
+					case 'outreach':
+						responseData = await Leadspicker.handleOutreachOperations(this, i);
 						break;
 					default:
 						throw new NodeOperationError(
