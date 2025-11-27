@@ -24,6 +24,8 @@ import {
 	leadOperations,
 	linkedinActivityFields,
 	linkedinActivityOperations,
+	globalExclusionListFields,
+	globalExclusionListOperations,
 	replyFields,
 	replyOperations,
 	MANUAL_ID_OPTION,
@@ -191,6 +193,45 @@ export class Leadspicker implements INodeType {
 		return clone;
 	}
 
+	private static splitIdentifierString(value: unknown): string[] {
+		if (typeof value !== 'string' || value.trim() === '') {
+			return [];
+		}
+		return value
+			.split(/\r?\n/)
+			.map((entry) => entry.trim())
+			.filter((entry) => entry !== '');
+	}
+
+	private static categorizeBlacklistEntries(entries: string[]) {
+		const buckets = {
+			emails: [] as string[],
+			linkedins: [] as string[],
+			company_linkedins: [] as string[],
+			domains: [] as string[],
+		};
+		for (const entry of entries) {
+			const normalized = entry.toLowerCase();
+			if (entry.includes('@')) {
+				buckets.emails.push(entry);
+				continue;
+			}
+			if (
+				normalized.includes('linkedin.com/company') ||
+				normalized.includes('linkedin.com/school')
+			) {
+				buckets.company_linkedins.push(entry);
+				continue;
+			}
+			if (normalized.includes('linkedin.com/')) {
+				buckets.linkedins.push(entry);
+				continue;
+			}
+			buckets.domains.push(entry);
+		}
+		return buckets;
+	}
+
 	private static extractItemsFromFinderResponse(
 		response: unknown,
 		key_name: string,
@@ -330,7 +371,7 @@ export class Leadspicker implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle:
-			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
+			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
 		defaults: {
 			name: 'Leadspicker',
@@ -356,6 +397,10 @@ export class Leadspicker implements INodeType {
 						value: 'project',
 					},
 					{
+						name: 'Global Exclusion List',
+						value: 'globalExclusionList',
+					},
+					{
 						name: 'Lead',
 						value: 'person',
 					},
@@ -374,7 +419,9 @@ export class Leadspicker implements INodeType {
 			...campaignOperations,
 			...replyOperations,
 			...linkedinActivityOperations,
+			...globalExclusionListOperations,
 			...campaignFields,
+			...globalExclusionListFields,
 			...leadFields,
 			...replyFields,
 			...leadFinderInputFields,
@@ -583,7 +630,34 @@ export class Leadspicker implements INodeType {
 					'project',
 					i,
 				);
-				return leadspickerApiRequest.call(context, 'GET', `/projects/${campaignId}/blacklist-text`);
+				try {
+					return await leadspickerApiRequest.call(
+						context,
+						'GET',
+						`/projects/${campaignId}/blacklist-text`,
+					);
+				} catch (error) {
+					const httpCode =
+						typeof error === 'object' && error !== null && 'httpCode' in error
+							? (error as { httpCode?: string | number }).httpCode
+							: undefined;
+					if (
+						(typeof httpCode === 'string' && httpCode === '404') ||
+						(typeof httpCode === 'number' && httpCode === 404)
+					) {
+						return [
+							{
+								matched_emails_count: 0,
+								updated: null,
+								linkedins: [],
+								company_linkedins: [],
+								emails: [],
+								domains: [],
+							},
+						];
+					}
+					throw error;
+				}
 			}
 			case 'getCampaignLog': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(
@@ -1043,6 +1117,90 @@ export class Leadspicker implements INodeType {
 	}
 
 	/**
+	 * Handles operations for the 'Global Exclusion List' resource.
+	 */
+	private static async handleGlobalExclusionListOperations(
+		context: IExecuteFunctions,
+		i: number,
+	): Promise<any> {
+		const operation = context.getNodeParameter('operation', i) as string;
+
+		switch (operation) {
+			case 'addLead': {
+				const blacklistEntry = context.getNodeParameter('globalBlacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to add to the global exclusion list.',
+					);
+				}
+				const body: IDataObject = { data: [trimmedEntry] };
+				await leadspickerApiRequest.call(context, 'POST', '/global-blacklist-add', body);
+				return [];
+			}
+			case 'removeLead': {
+				const blacklistEntry = context.getNodeParameter('globalBlacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to remove from the global exclusion list.',
+					);
+				}
+				const query: IDataObject = { identifier: trimmedEntry };
+				await leadspickerApiRequest.call(context, 'DELETE', '/global-blacklist', {}, query);
+				return [];
+			}
+			case 'get': {
+				const filters = context.getNodeParameter(
+					'globalExclusionListFilters',
+					i,
+					{},
+				) as IDataObject;
+				const query: IDataObject = {};
+				const memberId = Leadspicker.toNumericId(filters.memberId as NodeParameterValueType);
+				if (memberId !== undefined) {
+					query.member_id = memberId;
+				}
+				const response = (await leadspickerApiRequest.call(
+					context,
+					'GET',
+					'/global-blacklist',
+					{},
+					query,
+				)) as IDataObject | IDataObject[];
+				if (!isPlainObject(response) || typeof response.data !== 'string') {
+					return response;
+				}
+				const entries = Leadspicker.splitIdentifierString(response.data);
+				const buckets = Leadspicker.categorizeBlacklistEntries(entries);
+				const unsubscribed = Leadspicker.splitIdentifierString(response.unsubscribed_emails);
+				const matchedEmailsCount =
+					typeof response.matched_emails_count === 'number'
+						? response.matched_emails_count
+						: buckets.emails.length;
+				return [
+					{
+						linkedins: buckets.linkedins,
+						company_linkedins: buckets.company_linkedins,
+						emails: buckets.emails,
+						domains: buckets.domains,
+						unsubscribed_emails: unsubscribed,
+						matched_emails_count: matchedEmailsCount,
+						updated: response.updated ?? null,
+					},
+				];
+			}
+			default:
+				throw new NodeOperationError(
+					context.getNode(),
+					`The operation "${operation}" is not supported for Global Exclusion List resource.`,
+				);
+		}
+	}
+
+	/**
 	 * The main execute method for the node.
 	 */
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -1066,6 +1224,9 @@ export class Leadspicker implements INodeType {
 						break;
 					case 'linkedinActivity':
 						responseData = await Leadspicker.handleLinkedinActivityOperations(this, i);
+						break;
+					case 'globalExclusionList':
+						responseData = await Leadspicker.handleGlobalExclusionListOperations(this, i);
 						break;
 					default:
 						throw new NodeOperationError(
