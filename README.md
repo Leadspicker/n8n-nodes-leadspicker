@@ -39,6 +39,7 @@ This node supports the following resources and operations:
 * **Campaign**
   * Create a new campaign
   * Delete a campaign
+  * Get the campaign log (timeline events with optional search, date, person, and type filters)
 * **Reply**
   * Get replies based on filters (email accounts, campaigns, sentiment)
 * **Linkedin Activity**
