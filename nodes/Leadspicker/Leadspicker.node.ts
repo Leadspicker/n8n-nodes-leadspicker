@@ -16,6 +16,8 @@ import type {
 
 import { leadspickerApiRequest, isPlainObject } from './GenericFunctions';
 import {
+	accountFields,
+	accountOperations,
 	campaignFields,
 	campaignOperations,
 	leadFields,
@@ -79,6 +81,33 @@ export class Leadspicker implements INodeType {
 		return id;
 	}
 
+	private static toNumberOrNull(value: unknown): number | null {
+		const numeric = Leadspicker.toNumericId(value as NodeParameterValueType);
+		return numeric ?? null;
+	}
+
+	private static coerceToDataObject(value: unknown): IDataObject {
+		return isPlainObject(value) ? (value as IDataObject) : ({ raw: value } as IDataObject);
+	}
+
+	private static getHttpStatusCode(error: unknown): string | undefined {
+		if (typeof error === 'object' && error !== null && 'httpCode' in error) {
+			const { httpCode } = error as { httpCode?: unknown };
+			if (typeof httpCode === 'string') {
+				return httpCode;
+			}
+			if (typeof httpCode === 'number') {
+				return httpCode.toString();
+			}
+		}
+		return undefined;
+	}
+
+	private static async fetchCurrentUser(context: IExecuteFunctions): Promise<IDataObject> {
+		const response = await leadspickerApiRequest.call(context, 'GET', '/auth/me');
+		return Leadspicker.coerceToDataObject(response);
+	}
+
 	private static getIdFromOptionOrManual(
 		context: IExecuteFunctions,
 		optionName: string,
@@ -123,6 +152,32 @@ export class Leadspicker implements INodeType {
 			) ??
 			Leadspicker.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
 		);
+	}
+
+	private static toDataObjectArray(value: unknown): IDataObject[] {
+		const normalize = (arr: unknown[]): IDataObject[] =>
+			arr.filter((entry): entry is IDataObject => isPlainObject(entry));
+		if (Array.isArray(value)) {
+			return normalize(value);
+		}
+		if (isPlainObject(value)) {
+			const candidateKeys = ['items', 'results', 'data'];
+			for (const key of candidateKeys) {
+				const possibleArray = (value as IDataObject)[key];
+				if (Array.isArray(possibleArray)) {
+					return normalize(possibleArray);
+				}
+			}
+		}
+		return [];
+	}
+
+	private static countRunningRobots(payload: unknown): number {
+		const robots = Leadspicker.toDataObjectArray(payload);
+		return robots.reduce((count, robot) => {
+			const status = typeof robot.status === 'string' ? robot.status.toLowerCase().trim() : '';
+			return status === 'running' ? count + 1 : count;
+		}, 0);
 	}
 
 	private static isAttributeValueObject(value: unknown): value is { value: unknown } {
@@ -372,7 +427,7 @@ export class Leadspicker implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle:
-			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
+			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach", account: "Account" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
 		defaults: {
 			name: 'Leadspicker',
@@ -393,6 +448,10 @@ export class Leadspicker implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
+					{
+						name: 'Account',
+						value: 'account',
+					},
 					{
 						name: 'Campaign',
 						value: 'project',
@@ -420,12 +479,14 @@ export class Leadspicker implements INodeType {
 				],
 				default: 'project',
 			},
+			...accountOperations,
 			...leadOperations,
 			...campaignOperations,
 			...replyOperations,
 			...linkedinActivityOperations,
 			...globalExclusionListOperations,
 			...outreachOperations,
+			...accountFields,
 			...campaignFields,
 			...globalExclusionListFields,
 			...leadFields,
@@ -435,6 +496,93 @@ export class Leadspicker implements INodeType {
 			...leadFinderFields,
 		],
 	};
+
+	/**
+	 * Handles operations for the 'Account' resource.
+	 */
+	private static async handleAccountOperations(
+		context: IExecuteFunctions,
+		i: number,
+	): Promise<any> {
+		const operation = context.getNodeParameter('operation', i) as string;
+
+		switch (operation) {
+			case 'getInfo': {
+				const user = await Leadspicker.fetchCurrentUser(context);
+				const userId = Leadspicker.toNumberOrNull(user.id);
+				let organizationUser: IDataObject | null = null;
+
+				if (userId !== null) {
+					try {
+						const organizationResponse = await leadspickerApiRequest.call(
+							context,
+							'GET',
+							`/client-organization-users/${userId}`,
+						);
+						organizationUser = Leadspicker.coerceToDataObject(organizationResponse);
+					} catch (error) {
+						const statusCode = Leadspicker.getHttpStatusCode(error);
+						if (statusCode !== '403' && statusCode !== '404') {
+							throw error;
+						}
+					}
+				}
+
+				const userConfig = isPlainObject(user.config) ? (user.config as IDataObject) : undefined;
+				const subscription = isPlainObject(user.subscription)
+					? (user.subscription as IDataObject)
+					: undefined;
+				const organization = organizationUser ?? undefined;
+
+				const allowedRobotsCount =
+					Leadspicker.toNumberOrNull(organization?.n_allowed_robots) ??
+					Leadspicker.toNumberOrNull(userConfig?.n_allowed_robots) ??
+					0;
+				const createdRobotsCount = Leadspicker.toNumberOrNull(user.created_robots_count) ?? 0;
+				const allowedEmailAccounts =
+					Leadspicker.toNumberOrNull(organization?.n_allowed_email_accounts) ??
+					Leadspicker.toNumberOrNull(userConfig?.n_allowed_email_accounts) ??
+					0;
+				const allowedLinkedinAccounts =
+					Leadspicker.toNumberOrNull(organization?.n_allowed_linkedin_accounts) ??
+					Leadspicker.toNumberOrNull(userConfig?.n_allowed_linkedin_accounts) ??
+					0;
+
+				const robotsResponse = await leadspickerApiRequest.call(context, 'GET', '/robots');
+				const runningRobotsCount = Leadspicker.countRunningRobots(robotsResponse);
+				const subscriptionEnd =
+					typeof subscription?.current_period_end === 'string'
+						? subscription.current_period_end
+						: typeof subscription?.current_period_end === 'number'
+							? subscription.current_period_end
+							: null;
+
+				return [
+					{
+						id: user.id ?? null,
+						first_name: typeof user.first_name === 'string' ? user.first_name : null,
+						last_name: typeof user.last_name === 'string' ? user.last_name : null,
+						email: typeof user.email === 'string' ? user.email : null,
+						available_robot_results_this_period:
+							Leadspicker.toNumberOrNull(user.available_robot_results_this_period) ?? 0,
+						credits_available_now:
+							Leadspicker.toNumberOrNull(subscription?.credits_available_now) ?? 0,
+						available_robots: Math.max(allowedRobotsCount - createdRobotsCount, 0),
+						created_robots_count: createdRobotsCount,
+						allowed_email_accounts: allowedEmailAccounts,
+						allowed_linkedin_accounts: allowedLinkedinAccounts,
+						running_robots_count: runningRobotsCount,
+						subscription_end_date: subscriptionEnd,
+					},
+				];
+			}
+			default:
+				throw new NodeOperationError(
+					context.getNode(),
+					`The operation "${operation}" is not supported for Account resource.`,
+				);
+		}
+	}
 
 	/**
 	 * Handles operations for the 'Lead' resource.
@@ -1241,6 +1389,9 @@ export class Leadspicker implements INodeType {
 				let responseData: any;
 
 				switch (resource) {
+					case 'account':
+						responseData = await Leadspicker.handleAccountOperations(this, i);
+						break;
 					case 'person':
 						responseData = await Leadspicker.handleLeadOperations(this, i);
 						break;

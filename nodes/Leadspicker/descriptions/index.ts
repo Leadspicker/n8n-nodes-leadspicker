@@ -1,3 +1,4 @@
+export * from './AccountDescription';
 export * from './CampaignDescription';
 export * from './GlobalExclusionListDescription';
 export * from './LeadDescription';
