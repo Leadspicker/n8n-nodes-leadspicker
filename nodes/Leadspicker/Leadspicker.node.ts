@@ -509,44 +509,17 @@ export class Leadspicker implements INodeType {
 		switch (operation) {
 			case 'getInfo': {
 				const user = await Leadspicker.fetchCurrentUser(context);
-				const userId = Leadspicker.toNumberOrNull(user.id);
-				let organizationUser: IDataObject | null = null;
-
-				if (userId !== null) {
-					try {
-						const organizationResponse = await leadspickerApiRequest.call(
-							context,
-							'GET',
-							`/client-organization-users/${userId}`,
-						);
-						organizationUser = Leadspicker.coerceToDataObject(organizationResponse);
-					} catch (error) {
-						const statusCode = Leadspicker.getHttpStatusCode(error);
-						if (statusCode !== '403' && statusCode !== '404') {
-							throw error;
-						}
-					}
-				}
 
 				const userConfig = isPlainObject(user.config) ? (user.config as IDataObject) : undefined;
 				const subscription = isPlainObject(user.subscription)
 					? (user.subscription as IDataObject)
 					: undefined;
-				const organization = organizationUser ?? undefined;
-
-				const allowedRobotsCount =
-					Leadspicker.toNumberOrNull(organization?.n_allowed_robots) ??
-					Leadspicker.toNumberOrNull(userConfig?.n_allowed_robots) ??
-					0;
+				const allowedRobotsCount = Leadspicker.toNumberOrNull(userConfig?.n_allowed_robots) ?? 0;
 				const createdRobotsCount = Leadspicker.toNumberOrNull(user.created_robots_count) ?? 0;
 				const allowedEmailAccounts =
-					Leadspicker.toNumberOrNull(organization?.n_allowed_email_accounts) ??
-					Leadspicker.toNumberOrNull(userConfig?.n_allowed_email_accounts) ??
-					0;
+					Leadspicker.toNumberOrNull(userConfig?.n_allowed_email_accounts) ?? 0;
 				const allowedLinkedinAccounts =
-					Leadspicker.toNumberOrNull(organization?.n_allowed_linkedin_accounts) ??
-					Leadspicker.toNumberOrNull(userConfig?.n_allowed_linkedin_accounts) ??
-					0;
+					Leadspicker.toNumberOrNull(userConfig?.n_allowed_linkedin_accounts) ?? 0;
 
 				const robotsResponse = await leadspickerApiRequest.call(context, 'GET', '/robots');
 				const runningRobotsCount = Leadspicker.countRunningRobots(robotsResponse);
