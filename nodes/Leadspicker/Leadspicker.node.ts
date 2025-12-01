@@ -16,6 +16,8 @@ import type {
 
 import { leadspickerApiRequest, isPlainObject } from './GenericFunctions';
 import {
+	accountFields,
+	accountOperations,
 	campaignFields,
 	campaignOperations,
 	leadFields,
@@ -24,6 +26,9 @@ import {
 	leadOperations,
 	linkedinActivityFields,
 	linkedinActivityOperations,
+	outreachOperations,
+	globalExclusionListFields,
+	globalExclusionListOperations,
 	replyFields,
 	replyOperations,
 	MANUAL_ID_OPTION,
@@ -76,6 +81,20 @@ export class Leadspicker implements INodeType {
 		return id;
 	}
 
+	private static toNumberOrNull(value: unknown): number | null {
+		const numeric = Leadspicker.toNumericId(value as NodeParameterValueType);
+		return numeric ?? null;
+	}
+
+	private static coerceToDataObject(value: unknown): IDataObject {
+		return isPlainObject(value) ? (value as IDataObject) : ({ raw: value } as IDataObject);
+	}
+
+	private static async fetchCurrentUser(context: IExecuteFunctions): Promise<IDataObject> {
+		const response = await leadspickerApiRequest.call(context, 'GET', '/auth/me');
+		return Leadspicker.coerceToDataObject(response);
+	}
+
 	private static getIdFromOptionOrManual(
 		context: IExecuteFunctions,
 		optionName: string,
@@ -112,12 +131,40 @@ export class Leadspicker implements INodeType {
 	private static getCampaignIdForLeadOptions(context: ILoadOptionsFunctions): number | undefined {
 		const params = (context.getCurrentNodeParameters?.() ?? {}) as IDataObject;
 		return (
+			Leadspicker.tryGetIdFromParameters(params, 'projectLogId', 'projectLogIdManual') ??
 			Leadspicker.tryGetIdFromParameters(
 				params,
 				'personLookupProjectId',
 				'personLookupProjectIdManual',
-			) ?? Leadspicker.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
+			) ??
+			Leadspicker.tryGetIdFromParameters(params, 'projectId', 'projectIdManual')
 		);
+	}
+
+	private static toDataObjectArray(value: unknown): IDataObject[] {
+		const normalize = (arr: unknown[]): IDataObject[] =>
+			arr.filter((entry): entry is IDataObject => isPlainObject(entry));
+		if (Array.isArray(value)) {
+			return normalize(value);
+		}
+		if (isPlainObject(value)) {
+			const candidateKeys = ['items', 'results', 'data'];
+			for (const key of candidateKeys) {
+				const possibleArray = (value as IDataObject)[key];
+				if (Array.isArray(possibleArray)) {
+					return normalize(possibleArray);
+				}
+			}
+		}
+		return [];
+	}
+
+	private static countRunningRobots(payload: unknown): number {
+		const robots = Leadspicker.toDataObjectArray(payload);
+		return robots.reduce((count, robot) => {
+			const status = typeof robot.status === 'string' ? robot.status.toLowerCase().trim() : '';
+			return status === 'running' ? count + 1 : count;
+		}, 0);
 	}
 
 	private static isAttributeValueObject(value: unknown): value is { value: unknown } {
@@ -187,6 +234,45 @@ export class Leadspicker implements INodeType {
 		}
 
 		return clone;
+	}
+
+	private static splitIdentifierString(value: unknown): string[] {
+		if (typeof value !== 'string' || value.trim() === '') {
+			return [];
+		}
+		return value
+			.split(/\r?\n/)
+			.map((entry) => entry.trim())
+			.filter((entry) => entry !== '');
+	}
+
+	private static categorizeBlacklistEntries(entries: string[]) {
+		const buckets = {
+			emails: [] as string[],
+			linkedins: [] as string[],
+			company_linkedins: [] as string[],
+			domains: [] as string[],
+		};
+		for (const entry of entries) {
+			const normalized = entry.toLowerCase();
+			if (entry.includes('@')) {
+				buckets.emails.push(entry);
+				continue;
+			}
+			if (
+				normalized.includes('linkedin.com/company') ||
+				normalized.includes('linkedin.com/school')
+			) {
+				buckets.company_linkedins.push(entry);
+				continue;
+			}
+			if (normalized.includes('linkedin.com/')) {
+				buckets.linkedins.push(entry);
+				continue;
+			}
+			buckets.domains.push(entry);
+		}
+		return buckets;
 	}
 
 	private static extractItemsFromFinderResponse(
@@ -328,7 +414,7 @@ export class Leadspicker implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle:
-			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
+			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach", account: "Account" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
 		defaults: {
 			name: 'Leadspicker',
@@ -350,8 +436,16 @@ export class Leadspicker implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
+						name: 'Account',
+						value: 'account',
+					},
+					{
 						name: 'Campaign',
 						value: 'project',
+					},
+					{
+						name: 'Global Exclusion List',
+						value: 'globalExclusionList',
 					},
 					{
 						name: 'Lead',
@@ -362,17 +456,26 @@ export class Leadspicker implements INodeType {
 						value: 'linkedinActivity',
 					},
 					{
+						name: 'Outreach',
+						value: 'outreach',
+					},
+					{
 						name: 'Reply',
 						value: 'reply',
 					},
 				],
 				default: 'project',
 			},
+			...accountOperations,
 			...leadOperations,
 			...campaignOperations,
 			...replyOperations,
 			...linkedinActivityOperations,
+			...globalExclusionListOperations,
+			...outreachOperations,
+			...accountFields,
 			...campaignFields,
+			...globalExclusionListFields,
 			...leadFields,
 			...replyFields,
 			...leadFinderInputFields,
@@ -380,6 +483,66 @@ export class Leadspicker implements INodeType {
 			...leadFinderFields,
 		],
 	};
+
+	/**
+	 * Handles operations for the 'Account' resource.
+	 */
+	private static async handleAccountOperations(
+		context: IExecuteFunctions,
+		i: number,
+	): Promise<any> {
+		const operation = context.getNodeParameter('operation', i) as string;
+
+		switch (operation) {
+			case 'getInfo': {
+				const user = await Leadspicker.fetchCurrentUser(context);
+
+				const userConfig = isPlainObject(user.config) ? (user.config as IDataObject) : undefined;
+				const subscription = isPlainObject(user.subscription)
+					? (user.subscription as IDataObject)
+					: undefined;
+				const allowedRobotsCount = Leadspicker.toNumberOrNull(userConfig?.n_allowed_robots) ?? 0;
+				const createdRobotsCount = Leadspicker.toNumberOrNull(user.created_robots_count) ?? 0;
+				const allowedEmailAccounts =
+					Leadspicker.toNumberOrNull(userConfig?.n_allowed_email_accounts) ?? 0;
+				const allowedLinkedinAccounts =
+					Leadspicker.toNumberOrNull(userConfig?.n_allowed_linkedin_accounts) ?? 0;
+
+				const robotsResponse = await leadspickerApiRequest.call(context, 'GET', '/robots');
+				const runningRobotsCount = Leadspicker.countRunningRobots(robotsResponse);
+				const subscriptionEnd =
+					typeof subscription?.current_period_end === 'string'
+						? subscription.current_period_end
+						: typeof subscription?.current_period_end === 'number'
+							? subscription.current_period_end
+							: null;
+
+				return [
+					{
+						id: user.id ?? null,
+						first_name: typeof user.first_name === 'string' ? user.first_name : null,
+						last_name: typeof user.last_name === 'string' ? user.last_name : null,
+						email: typeof user.email === 'string' ? user.email : null,
+						available_robot_results_this_period:
+							Leadspicker.toNumberOrNull(user.available_robot_results_this_period) ?? 0,
+						credits_available_now:
+							Leadspicker.toNumberOrNull(subscription?.credits_available_now) ?? 0,
+						available_robots: Math.max(allowedRobotsCount - createdRobotsCount, 0),
+						created_robots_count: createdRobotsCount,
+						allowed_email_accounts: allowedEmailAccounts,
+						allowed_linkedin_accounts: allowedLinkedinAccounts,
+						running_robots_count: runningRobotsCount,
+						subscription_end_date: subscriptionEnd,
+					},
+				];
+			}
+			default:
+				throw new NodeOperationError(
+					context.getNode(),
+					`The operation "${operation}" is not supported for Account resource.`,
+				);
+		}
+	}
 
 	/**
 	 * Handles operations for the 'Lead' resource.
@@ -521,6 +684,175 @@ export class Leadspicker implements INodeType {
 					i,
 				);
 				return leadspickerApiRequest.call(context, 'DELETE', `/projects/${campaignId}`);
+			}
+			case 'addToExclusionList': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectBlacklistId',
+					'projectBlacklistIdManual',
+					'project',
+					i,
+				);
+				const blacklistEntry = context.getNodeParameter('blacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to blacklist.',
+					);
+				}
+				const body: IDataObject = { data: trimmedEntry };
+				const query: IDataObject = { append: true };
+				return leadspickerApiRequest.call(
+					context,
+					'PUT',
+					`/projects/${campaignId}/blacklist-text`,
+					body,
+					query,
+				);
+			}
+			case 'removeFromExclusionList': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectBlacklistId',
+					'projectBlacklistIdManual',
+					'project',
+					i,
+				);
+				const blacklistEntry = context.getNodeParameter('blacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to remove from the blacklist.',
+					);
+				}
+				const query: IDataObject = { identifier: trimmedEntry };
+				return leadspickerApiRequest.call(
+					context,
+					'DELETE',
+					`/projects/${campaignId}/blacklist-text`,
+					{},
+					query,
+				);
+			}
+			case 'getExclusionList': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectBlacklistId',
+					'projectBlacklistIdManual',
+					'project',
+					i,
+				);
+				try {
+					return await leadspickerApiRequest.call(
+						context,
+						'GET',
+						`/projects/${campaignId}/blacklist-text`,
+					);
+				} catch (error) {
+					const httpCode =
+						typeof error === 'object' && error !== null && 'httpCode' in error
+							? (error as { httpCode?: string | number }).httpCode
+							: undefined;
+					if (
+						(typeof httpCode === 'string' && httpCode === '404') ||
+						(typeof httpCode === 'number' && httpCode === 404)
+					) {
+						return [
+							{
+								matched_emails_count: 0,
+								updated: null,
+								linkedins: [],
+								company_linkedins: [],
+								emails: [],
+								domains: [],
+							},
+						];
+					}
+					throw error;
+				}
+			}
+			case 'getCampaignLog': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectLogId',
+					'projectLogIdManual',
+					'project',
+					i,
+				);
+				const search = context.getNodeParameter('projectLogSearch', i, '') as string;
+				const startDate = context.getNodeParameter('projectLogStartDate', i, '') as string;
+				const endDate = context.getNodeParameter('projectLogEndDate', i, '') as string;
+				const personSelection = context.getNodeParameter(
+					'projectLogPersonId',
+					i,
+					'',
+				) as NodeParameterValueType;
+				let personId: number | undefined;
+				if (personSelection === MANUAL_ID_OPTION) {
+					const manualValue = context.getNodeParameter('projectLogPersonIdManual', i);
+					personId = Leadspicker.toNumericId(manualValue);
+				} else {
+					personId = Leadspicker.toNumericId(personSelection);
+				}
+				const eventTypes = context.getNodeParameter('projectLogEventTypes', i, []) as string[];
+				const outreachStepTypes = context.getNodeParameter(
+					'projectLogOutreachStepTypes',
+					i,
+					[],
+				) as string[];
+				const queryParts: string[] = [`page=1`, `page_size=${DEFAULT_PAGE_SIZE}`];
+				const addParam = (key: string, value: string | number) => {
+					queryParts.push(`${key}=${encodeURIComponent(value.toString())}`);
+				};
+				if (typeof search === 'string' && search.trim() !== '') {
+					addParam('search', search.trim());
+				}
+				if (typeof startDate === 'string' && startDate.trim() !== '') {
+					addParam('start_date', startDate.trim());
+				}
+				if (typeof endDate === 'string' && endDate.trim() !== '') {
+					addParam('end_date', endDate.trim());
+				}
+				if (personId !== undefined) {
+					addParam('person_id', personId);
+				}
+				if (Array.isArray(eventTypes)) {
+					for (const type of eventTypes) {
+						if (typeof type === 'string' && type.trim() !== '') {
+							addParam('event_types', type);
+						}
+					}
+				}
+				if (Array.isArray(outreachStepTypes)) {
+					for (const type of outreachStepTypes) {
+						if (typeof type === 'string') {
+							addParam('outreach_step_types', type);
+						}
+					}
+				}
+				let path = `/projects/${campaignId}/events`;
+				if (queryParts.length > 0) {
+					path += `?${queryParts.join('&')}`;
+				}
+				const response = (await leadspickerApiRequest.call(
+					context,
+					'GET',
+					path,
+					{},
+					{},
+				)) as IDataObject;
+				if (Array.isArray(response?.results)) {
+					return response.results as IDataObject[];
+				}
+				if (Array.isArray(response?.items)) {
+					return response.items as IDataObject[];
+				}
+				if (Array.isArray(response)) {
+					return response as IDataObject[];
+				}
+				return [];
 			}
 			default:
 				throw new NodeOperationError(
@@ -899,6 +1231,112 @@ export class Leadspicker implements INodeType {
 	}
 
 	/**
+	 * Handles operations for the 'Outreach' resource.
+	 */
+	private static async handleOutreachOperations(
+		context: IExecuteFunctions,
+		i: number,
+	): Promise<any> {
+		const operation = context.getNodeParameter('operation', i) as string;
+
+		switch (operation) {
+			case 'getLinkedinAccounts':
+				return leadspickerApiRequest.call(context, 'GET', '/linkedin-accounts');
+			case 'getEmailAccounts':
+				return leadspickerApiRequest.call(context, 'GET', '/email-accounts');
+			default:
+				throw new NodeOperationError(
+					context.getNode(),
+					`The operation "${operation}" is not supported for Outreach resource.`,
+				);
+		}
+	}
+
+	/**
+	 * Handles operations for the 'Global Exclusion List' resource.
+	 */
+	private static async handleGlobalExclusionListOperations(
+		context: IExecuteFunctions,
+		i: number,
+	): Promise<any> {
+		const operation = context.getNodeParameter('operation', i) as string;
+
+		switch (operation) {
+			case 'addLead': {
+				const blacklistEntry = context.getNodeParameter('globalBlacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to add to the global exclusion list.',
+					);
+				}
+				const body: IDataObject = { data: [trimmedEntry] };
+				await leadspickerApiRequest.call(context, 'POST', '/global-blacklist-add', body);
+				return [];
+			}
+			case 'removeLead': {
+				const blacklistEntry = context.getNodeParameter('globalBlacklistEntry', i) as string;
+				const trimmedEntry = typeof blacklistEntry === 'string' ? blacklistEntry.trim() : '';
+				if (!trimmedEntry) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide a LinkedIn URL, email, domain, or company profile to remove from the global exclusion list.',
+					);
+				}
+				const query: IDataObject = { identifier: trimmedEntry };
+				await leadspickerApiRequest.call(context, 'DELETE', '/global-blacklist', {}, query);
+				return [];
+			}
+			case 'get': {
+				const filters = context.getNodeParameter(
+					'globalExclusionListFilters',
+					i,
+					{},
+				) as IDataObject;
+				const query: IDataObject = {};
+				const memberId = Leadspicker.toNumericId(filters.memberId as NodeParameterValueType);
+				if (memberId !== undefined) {
+					query.member_id = memberId;
+				}
+				const response = (await leadspickerApiRequest.call(
+					context,
+					'GET',
+					'/global-blacklist',
+					{},
+					query,
+				)) as IDataObject | IDataObject[];
+				if (!isPlainObject(response) || typeof response.data !== 'string') {
+					return response;
+				}
+				const entries = Leadspicker.splitIdentifierString(response.data);
+				const buckets = Leadspicker.categorizeBlacklistEntries(entries);
+				const unsubscribed = Leadspicker.splitIdentifierString(response.unsubscribed_emails);
+				const matchedEmailsCount =
+					typeof response.matched_emails_count === 'number'
+						? response.matched_emails_count
+						: buckets.emails.length;
+				return [
+					{
+						linkedins: buckets.linkedins,
+						company_linkedins: buckets.company_linkedins,
+						emails: buckets.emails,
+						domains: buckets.domains,
+						unsubscribed_emails: unsubscribed,
+						matched_emails_count: matchedEmailsCount,
+						updated: response.updated ?? null,
+					},
+				];
+			}
+			default:
+				throw new NodeOperationError(
+					context.getNode(),
+					`The operation "${operation}" is not supported for Global Exclusion List resource.`,
+				);
+		}
+	}
+
+	/**
 	 * The main execute method for the node.
 	 */
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -911,6 +1349,9 @@ export class Leadspicker implements INodeType {
 				let responseData: any;
 
 				switch (resource) {
+					case 'account':
+						responseData = await Leadspicker.handleAccountOperations(this, i);
+						break;
 					case 'person':
 						responseData = await Leadspicker.handleLeadOperations(this, i);
 						break;
@@ -922,6 +1363,12 @@ export class Leadspicker implements INodeType {
 						break;
 					case 'linkedinActivity':
 						responseData = await Leadspicker.handleLinkedinActivityOperations(this, i);
+						break;
+					case 'globalExclusionList':
+						responseData = await Leadspicker.handleGlobalExclusionListOperations(this, i);
+						break;
+					case 'outreach':
+						responseData = await Leadspicker.handleOutreachOperations(this, i);
 						break;
 					default:
 						throw new NodeOperationError(
