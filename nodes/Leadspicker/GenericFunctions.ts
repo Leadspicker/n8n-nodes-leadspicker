@@ -98,6 +98,7 @@ export async function leadspickerApiRequest(
 
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
 		try {
+			// logToConsole('Leadspicker API request call', { method, endpoint });
 			const response = await this.helpers.requestWithAuthentication.call(
 				this,
 				'leadspickerApi',

@@ -40,6 +40,9 @@ This node supports the following resources and operations:
   * Create a new campaign
   * Delete a campaign
   * Get the campaign log (timeline events with optional search, date, person, and type filters)
+  * Add a lead to the campaign exclusion list
+  * Remove a lead from the campaign exclusion list
+  * Get the campaign exclusion list
 * **Reply**
   * Get replies based on filters (email accounts, campaigns, sentiment)
 * **Linkedin Activity**
@@ -49,12 +52,21 @@ This node supports the following resources and operations:
   * Get people who reacted to posts and send the results to a webhook
   * Retrieve LinkedIn profiles that reacted to posts returned by a content search URL
   * Retrieve reactors for posts authored by specific LinkedIn profiles
+* **Global Exclusion List**
+  * Add a lead identifier to the global exclusion list
+  * Remove a lead identifier from the global exclusion list
+  * Get the global exclusion list
+* **Outreach**
+  * List LinkedIn outreach accounts
+  * List email outreach accounts
+* **Account**
+  * Get account info and limits
 
 Note: The Linkedin Activity operations "Search Post Reactors" and "Profiles Post Reactors" auto-paginate. They aggregate all pages internally (handling the cursor automatically) and return a single flat list of reactor profiles.
 
 ## **Triggers**
 
-The Leadspicker Trigger node lets you subscribe to webhook events for a project and fire workflows from these Leadspicker events:
+The Leadspicker Trigger node lets you subscribe to webhook events across all projects or filter down to a single campaign and fire workflows from these Leadspicker events:
 
 * Account revoked (connected account access revoked)
 * Email bounced
@@ -83,6 +95,14 @@ This node has been developed and tested against n8n version 1.0.0. It may work w
 * [Leadspicker Website](https://leadspicker.com/)
 
 ## **Changelog**
+
+### 0.4.1
+
+* Added an **Account** resource with a "Get Account Info" action that surfaces subscription renewal dates, allowed LinkedIn/email accounts, allowed robots, and how many robots are currently running.
+* Added an **Outreach** resource to list all connected LinkedIn accounts and configured email accounts in one call so workflows can fan out automatically.
+* Added campaign-level exclusion list management actions (add, remove, list).
+* Added a **Global Exclusion List** resource to manage the organization-wide blacklist and return categorized LinkedIn/email/domain identifiers.
+* Leadspicker Trigger can now listen to every project when no campaign is selected.
 
 ### 0.4.0
 
