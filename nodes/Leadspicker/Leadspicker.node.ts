@@ -90,19 +90,6 @@ export class Leadspicker implements INodeType {
 		return isPlainObject(value) ? (value as IDataObject) : ({ raw: value } as IDataObject);
 	}
 
-	private static getHttpStatusCode(error: unknown): string | undefined {
-		if (typeof error === 'object' && error !== null && 'httpCode' in error) {
-			const { httpCode } = error as { httpCode?: unknown };
-			if (typeof httpCode === 'string') {
-				return httpCode;
-			}
-			if (typeof httpCode === 'number') {
-				return httpCode.toString();
-			}
-		}
-		return undefined;
-	}
-
 	private static async fetchCurrentUser(context: IExecuteFunctions): Promise<IDataObject> {
 		const response = await leadspickerApiRequest.call(context, 'GET', '/auth/me');
 		return Leadspicker.coerceToDataObject(response);
