@@ -703,13 +703,19 @@ export class Leadspicker implements INodeType {
 				}
 				const body: IDataObject = { data: trimmedEntry };
 				const query: IDataObject = { append: true };
-				return leadspickerApiRequest.call(
+				await leadspickerApiRequest.call(
 					context,
 					'PUT',
 					`/projects/${campaignId}/blacklist-text`,
 					body,
 					query,
 				);
+				return [
+					{
+						status: 'success',
+						message: 'Lead was successfully added to Campaign Exclusion List.',
+					},
+				];
 			}
 			case 'removeFromExclusionList': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(
@@ -728,13 +734,19 @@ export class Leadspicker implements INodeType {
 					);
 				}
 				const query: IDataObject = { identifier: trimmedEntry };
-				return leadspickerApiRequest.call(
+				await leadspickerApiRequest.call(
 					context,
 					'DELETE',
 					`/projects/${campaignId}/blacklist-text`,
 					{},
 					query,
 				);
+				return [
+					{
+						status: 'success',
+						message: 'Lead was successfully removed from Campaign Exclusion List.',
+					},
+				];
 			}
 			case 'getExclusionList': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(
@@ -1273,7 +1285,12 @@ export class Leadspicker implements INodeType {
 				}
 				const body: IDataObject = { data: [trimmedEntry] };
 				await leadspickerApiRequest.call(context, 'POST', '/global-blacklist-add', body);
-				return [];
+				return [
+					{
+						status: 'success',
+						message: 'Lead was successfully added to Global Exclusion List.',
+					},
+				];
 			}
 			case 'removeLead': {
 				const blacklistEntry = context.getNodeParameter('globalBlacklistEntry', i) as string;
@@ -1286,7 +1303,12 @@ export class Leadspicker implements INodeType {
 				}
 				const query: IDataObject = { identifier: trimmedEntry };
 				await leadspickerApiRequest.call(context, 'DELETE', '/global-blacklist', {}, query);
-				return [];
+				return [
+					{
+						status: 'success',
+						message: 'Lead was successfully removed from Global Exclusion List.',
+					},
+				];
 			}
 			case 'get': {
 				const filters = context.getNodeParameter(
