@@ -337,6 +337,13 @@ export class LeadspickerTrigger implements INodeType {
 					url: webhookUrl,
 					features: [feature],
 				};
+				const mode = this.getMode();
+				const activationMode = this.getActivationMode?.();
+				const isManualTest = mode === 'manual' || activationMode === 'manual';
+				if (isManualTest) {
+					// Request Leadspicker to immediately fire a test payload for manual trigger tests
+					payload.fire_test_payload = true;
+				}
 				if (projectId !== undefined) {
 					payload.project_ids = [projectId];
 				}
