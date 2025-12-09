@@ -595,6 +595,67 @@ export class Leadspicker implements INodeType {
 
 				return Leadspicker.flattenLeadPayload(persons);
 			}
+			case 'bulkCreate': {
+				const campaignId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'projectId',
+					'projectIdManual',
+					'project',
+					i,
+				);
+				const leadsCollection = context.getNodeParameter('bulkLeads', i, {}) as {
+					lead?: IDataObject[];
+				};
+				const leadsInput = Array.isArray(leadsCollection.lead) ? leadsCollection.lead : [];
+
+				if (leadsInput.length === 0) {
+					throw new NodeOperationError(
+						context.getNode(),
+						'Please provide at least one lead to create.',
+					);
+				}
+
+				const persons = leadsInput.map((lead) => {
+					const customFields = (lead.customFields as IDataObject | undefined) ?? {};
+					const customFieldList = Array.isArray(customFields.field)
+						? (customFields.field as IDataObject[])
+						: [];
+					const customFieldsObj: IDataObject = {};
+					for (const field of customFieldList) {
+						if (!field) continue;
+						const key = typeof field.key === 'string' ? field.key : undefined;
+						const value = typeof field.value === 'string' ? field.value : undefined;
+						if (key) {
+							customFieldsObj[key] = value ?? '';
+						}
+					}
+
+					const { customFields: _omitCustomFields, ...leadData } = lead;
+					const leadBody: IDataObject = {
+						data_source: 'user_provided',
+						...leadData,
+					};
+					if (Object.keys(customFieldsObj).length > 0) {
+						leadBody.custom_fields = customFieldsObj;
+					}
+
+					Object.keys(leadBody).forEach((key) => {
+						const value = leadBody[key];
+						if (value === '' || value === null || value === undefined) {
+							delete leadBody[key];
+						}
+					});
+					return leadBody;
+				});
+
+				const body: IDataObject = {
+					project_id: campaignId,
+					persons,
+				};
+
+				const response = await leadspickerApiRequest.call(context, 'POST', '/persons/bulk', body);
+				return Leadspicker.flattenLeadPayload(response);
+			}
 			case 'create':
 			case 'update': {
 				const body = Leadspicker.buildLeadPayload(context, i);

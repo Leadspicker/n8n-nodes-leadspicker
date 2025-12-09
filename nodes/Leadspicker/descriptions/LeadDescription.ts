@@ -21,6 +21,12 @@ export const leadOperations: INodeProperties[] = [
 				action: 'Create a lead',
 			},
 			{
+				name: 'Bulk Create Leads',
+				value: 'bulkCreate',
+				description: 'Create multiple leads in a campaign',
+				action: 'Bulk create leads',
+			},
+			{
 				name: 'Delete Lead',
 				value: 'delete',
 				description: 'Delete a lead',
@@ -70,7 +76,7 @@ export const leadFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['person'],
-				operation: ['create', 'list'],
+				operation: ['create', 'list', 'bulkCreate'],
 			},
 		},
 		default: '',
@@ -92,7 +98,7 @@ export const leadFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['person'],
-				operation: ['create', 'list'],
+				operation: ['create', 'list', 'bulkCreate'],
 				projectId: [MANUAL_ID_OPTION],
 			},
 		},
@@ -356,6 +362,134 @@ export const leadFields: INodeProperties[] = [
 						type: 'string',
 						default: '',
 						description: 'Custom field value',
+					},
+				],
+			},
+		],
+	},
+	{
+		displayName: 'Leads',
+		name: 'bulkLeads',
+		type: 'fixedCollection',
+		placeholder: 'Add Lead',
+		typeOptions: {
+			multipleValues: true,
+		},
+		default: {},
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['person'],
+				operation: ['bulkCreate'],
+			},
+		},
+		options: [
+			{
+				name: 'lead',
+				displayName: 'Lead',
+				values: [
+					{
+						displayName: 'First Name',
+						name: 'first_name',
+						type: 'string',
+						default: '',
+						description: 'First name of the lead',
+					},
+					{
+						displayName: 'Last Name',
+						name: 'last_name',
+						type: 'string',
+						default: '',
+						description: 'Last name of the lead',
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						placeholder: 'name@email.com',
+						default: '',
+						description: 'Email address of the lead',
+					},
+					{
+						displayName: 'Country',
+						name: 'country',
+						type: 'string',
+						default: '',
+						description: 'Country of the lead',
+					},
+					{
+						displayName: 'Position',
+						name: 'position',
+						type: 'string',
+						default: '',
+						description: 'Job position/title of the lead',
+					},
+					{
+						displayName: 'Company Name',
+						name: 'company_name',
+						type: 'string',
+						default: '',
+						description: 'Company name where the lead works',
+					},
+					{
+						displayName: 'Company Website',
+						name: 'company_website',
+						type: 'string',
+						default: '',
+						description: 'Company website URL',
+					},
+					{
+						displayName: 'Company LinkedIn',
+						name: 'company_linkedin',
+						type: 'string',
+						default: '',
+						description: 'Company LinkedIn URL',
+					},
+					{
+						displayName: 'Lead LinkedIn',
+						name: 'linkedin',
+						type: 'string',
+						default: '',
+						description: 'Lead LinkedIn URL',
+					},
+					{
+						displayName: 'Sales Navigator',
+						name: 'salesnav',
+						type: 'string',
+						default: '',
+						description: 'LinkedIn Sales Navigator URL',
+					},
+					{
+						displayName: 'Custom Fields',
+						name: 'customFields',
+						type: 'fixedCollection',
+						placeholder: 'Add Custom Field',
+						typeOptions: {
+							multipleValues: true,
+						},
+						default: {},
+						options: [
+							{
+								displayName: 'Field',
+								name: 'field',
+								values: [
+									{
+										displayName: 'Key',
+										name: 'key',
+										type: 'string',
+										default: '',
+										description: 'Custom field key',
+									},
+									{
+										displayName: 'Value',
+										name: 'value',
+										type: 'string',
+										default: '',
+										description: 'Custom field value',
+									},
+								],
+							},
+						],
 					},
 				],
 			},
