@@ -104,6 +104,7 @@ This node has been developed and tested against n8n version 1.0.0. It may work w
 * Added a **Global Exclusion List** resource to manage the organization-wide blacklist and return categorized LinkedIn/email/domain identifiers.
 * Leadspicker Trigger can now listen to every project when no campaign is selected.
 * Leadspicker Trigger requests Leadspicker to immediately send a test payload whenever the node is executed manually so `Test workflow` runs receive sample data instantly.
+* Added a **Bulk Create Leads** action under the Lead resource to send multiple user-provided leads (with optional custom fields) to the `/persons/bulk` API endpoint in a single call.
 
 ### 0.4.0
 
