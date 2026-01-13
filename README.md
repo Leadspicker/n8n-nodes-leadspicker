@@ -96,8 +96,11 @@ This node has been developed and tested against n8n version 1.0.0. It may work w
 
 ## **Changelog**
 
-### 0.4.1
+### 0.4.2
 
+* Compliance fixes for n8n verification (removed external dependency usage and updated auth helper).
+
+### 0.4.1
 * Added an **Account** resource with a "Get Account Info" action that surfaces subscription renewal dates, allowed LinkedIn/email accounts, allowed robots, and how many robots are currently running.
 * Added an **Outreach** resource to list all connected LinkedIn accounts and configured email accounts in one call so workflows can fan out automatically.
 * Added campaign-level exclusion list management actions (add, remove, list).
