@@ -96,6 +96,10 @@ This node has been developed and tested against n8n version 1.0.0. It may work w
 
 ## **Changelog**
 
+### 0.4.3
+
+* Replaced global timer usage with n8n workflow sleep helper to satisfy community-node linting.
+
 ### 0.4.2
 
 * Compliance fixes for n8n verification (removed external dependency usage and updated auth helper).

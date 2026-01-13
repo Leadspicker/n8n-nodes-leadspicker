@@ -1,3 +1,4 @@
+import { sleep } from 'n8n-workflow';
 import type {
 	IExecuteFunctions,
 	IHookFunctions,
@@ -52,17 +53,6 @@ function shouldThrottle(headers: Record<string, string | string[] | undefined>) 
 		});
 	}
 	return throttle;
-}
-
-function sleep(ms: number) {
-	return new Promise<void>((resolve) => {
-		const timeout = typeof setTimeout === 'function' ? setTimeout : undefined;
-		if (timeout) {
-			timeout(resolve, ms);
-			return;
-		}
-		throw new Error('setTimeout is unavailable in this environment.');
-	});
 }
 
 function getStatusCode(error: unknown) {
