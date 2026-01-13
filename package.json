@@ -29,7 +29,9 @@
 		"prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
 	},
 	"files": [
-		"dist"
+		"dist/**/*",
+		"!dist/tests",
+		"!dist/tests/**"
 	],
 	"n8n": {
 		"n8nNodesApiVersion": 1,
@@ -57,9 +59,7 @@
 	"peerDependencies": {
 		"n8n-workflow": "*"
 	},
-	"dependencies": {
-		"moment-timezone": "^0.6.0"
-	},
+	"dependencies": {},
 	"bugs": {
 		"url": "https://github.com/Leadspicker/n8n-nodes-leadspicker/issues"
 	}

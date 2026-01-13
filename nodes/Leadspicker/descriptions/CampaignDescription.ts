@@ -1,8 +1,19 @@
-import * as moment from 'moment-timezone';
 import type { INodePropertyOptions, INodeProperties } from 'n8n-workflow';
 
 import { getUserTimezone } from '../GenericFunctions';
 import { MANUAL_ID_OPTION } from './Shared';
+
+const getTimezones = (): string[] => {
+	const intl = Intl as typeof Intl & {
+		supportedValuesOf?: (key: 'timeZone') => string[];
+	};
+
+	if (typeof intl.supportedValuesOf === 'function') {
+		return intl.supportedValuesOf('timeZone');
+	}
+
+	return [getUserTimezone()];
+};
 
 const TIMELINE_EVENT_TYPE_OPTIONS: INodePropertyOptions[] = [
 	{ name: 'Project Paused', value: 'project_paused' },
@@ -132,7 +143,7 @@ export const campaignFields: INodeProperties[] = [
 		default: getUserTimezone(),
 		required: true,
 		placeholder: 'Set Timezone',
-		options: moment.tz.names().map((timezone) => ({
+		options: getTimezones().map((timezone) => ({
 			name: timezone,
 			value: timezone,
 		})),

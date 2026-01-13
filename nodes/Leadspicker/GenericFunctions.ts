@@ -3,8 +3,8 @@ import type {
 	IHookFunctions,
 	IDataObject,
 	IHttpRequestMethods,
+	IHttpRequestOptions,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 } from 'n8n-workflow';
 
@@ -18,7 +18,7 @@ type ConsoleLogger = {
 };
 
 export function logToConsole(message: string, payload: Record<string, unknown>) {
-	const consoleLogger = (globalThis as { console?: ConsoleLogger }).console;
+	const consoleLogger = typeof console !== 'undefined' ? (console as ConsoleLogger) : undefined;
 	if (!consoleLogger) {
 		return;
 	}
@@ -54,11 +54,9 @@ function shouldThrottle(headers: Record<string, string | string[] | undefined>) 
 	return throttle;
 }
 
-type TimerSetTimeout = (callback: () => void, ms?: number) => unknown;
-
 function sleep(ms: number) {
 	return new Promise<void>((resolve) => {
-		const timeout = (globalThis as { setTimeout?: TimerSetTimeout }).setTimeout;
+		const timeout = typeof setTimeout === 'function' ? setTimeout : undefined;
 		if (timeout) {
 			timeout(resolve, ms);
 			return;
@@ -84,7 +82,7 @@ export async function leadspickerApiRequest(
 	body: IDataObject = {},
 	query: IDataObject = {},
 ) {
-	const options: IRequestOptions = {
+	const options: IHttpRequestOptions = {
 		headers: {},
 		method,
 		url: `https://app.leadspicker.com/app/sb/api${endpoint}`,
@@ -93,13 +91,13 @@ export async function leadspickerApiRequest(
 		body,
 		json: true,
 		qs: query,
-		resolveWithFullResponse: true,
+		returnFullResponse: true,
 	};
 
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
 		try {
 			// logToConsole('Leadspicker API request call', { method, endpoint });
-			const response = await this.helpers.requestWithAuthentication.call(
+			const response = await this.helpers.httpRequestWithAuthentication.call(
 				this,
 				'leadspickerApi',
 				options,
