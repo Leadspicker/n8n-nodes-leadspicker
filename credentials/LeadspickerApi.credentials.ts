@@ -8,7 +8,7 @@ import {
 export class LeadspickerApi implements ICredentialType {
 	name = 'leadspickerApi';
 	displayName = 'Leadspicker API';
-	icon = 'file:../nodes/Leadspicker/logo_leadspicker.svg';
+	icon: ICredentialType['icon'] = 'file:../nodes/Leadspicker/logo_leadspicker.svg';
 	documentationUrl = 'https://app.leadspicker.com/app/sb/api/docs';
 	properties: INodeProperties[] = [
 		{
