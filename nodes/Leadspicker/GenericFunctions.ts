@@ -14,18 +14,6 @@ const THROTTLE_DELAY_MS = 1000;
 const RETRY_DELAY_MS = 10_000;
 const MAX_RETRIES = 6;
 
-type ConsoleLogger = {
-	log: (...args: unknown[]) => void;
-};
-
-export function logToConsole(message: string, payload: Record<string, unknown>) {
-	const consoleLogger = typeof console !== 'undefined' ? (console as ConsoleLogger) : undefined;
-	if (!consoleLogger) {
-		return;
-	}
-	consoleLogger.log(message, payload);
-}
-
 function toNumber(headerValue: string | string[] | undefined) {
 	if (Array.isArray(headerValue)) {
 		return toNumber(headerValue[0]);
@@ -37,21 +25,9 @@ function toNumber(headerValue: string | string[] | undefined) {
 function shouldThrottle(headers: Record<string, string | string[] | undefined>) {
 	const remainingMinute = toNumber(headers['x-ratelimit-remaining-minute']);
 	const remainingDay = toNumber(headers['x-ratelimit-remaining-day']);
-	logToConsole('Leadspicker rate limit check', {
-		remainingMinute,
-		remainingDay,
-		threshold: RATE_LIMIT_THRESHOLD,
-	});
 	const throttle =
 		(remainingMinute !== undefined && remainingMinute < RATE_LIMIT_THRESHOLD) ||
 		(remainingDay !== undefined && remainingDay < RATE_LIMIT_THRESHOLD);
-	if (throttle) {
-		logToConsole('Leadspicker rate limit threshold reached', {
-			remainingMinute,
-			remainingDay,
-			threshold: RATE_LIMIT_THRESHOLD,
-		});
-	}
 	return throttle;
 }
 
@@ -86,25 +62,14 @@ export async function leadspickerApiRequest(
 
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
 		try {
-			// logToConsole('Leadspicker API request call', { method, endpoint });
 			const response = await this.helpers.httpRequestWithAuthentication.call(
 				this,
 				'leadspickerApi',
 				options,
 			);
-			const statusCode = typeof response.statusCode === 'number' ? response.statusCode : undefined;
-			logToConsole('Leadspicker API request completed', {
-				attempt: attempt + 1,
-				status: statusCode,
-			});
 			if (
 				shouldThrottle((response.headers ?? {}) as Record<string, string | string[] | undefined>)
 			) {
-				logToConsole('Leadspicker throttling request to respect rate limits', {
-					attempt: attempt + 1,
-					delayMs: THROTTLE_DELAY_MS,
-					status: statusCode,
-				});
 				await sleep(THROTTLE_DELAY_MS);
 			}
 
@@ -112,18 +77,9 @@ export async function leadspickerApiRequest(
 		} catch (error) {
 			const statusCode = getStatusCode(error);
 			if (statusCode === '429' && attempt < MAX_RETRIES - 1) {
-				logToConsole('Leadspicker retry scheduled after rate limit response', {
-					attempt: attempt + 1,
-					delayMs: RETRY_DELAY_MS,
-					status: statusCode,
-				});
 				await sleep(RETRY_DELAY_MS);
 				continue;
 			}
-			logToConsole('Leadspicker API request failed without retry', {
-				attempt: attempt + 1,
-				status: statusCode,
-			});
 			throw error;
 		}
 	}

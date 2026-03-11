@@ -13,7 +13,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { isPlainObject, leadspickerApiRequest, logToConsole } from './GenericFunctions';
+import { isPlainObject, leadspickerApiRequest } from './GenericFunctions';
 
 const MANUAL_ID_OPTION = '__manual__';
 const WEBHOOK_PATH = 'leadspicker';
@@ -292,10 +292,6 @@ export class LeadspickerTrigger implements INodeType {
 			async checkExists(this: IHookFunctions): Promise<boolean> {
 				const webhookUrl = this.getNodeWebhookUrl('default');
 				const feature = getSelectedFeature(this);
-				logToConsole(`Checking if webhook with URL "${webhookUrl}" exists...`, {
-					webhookUrl,
-					feature,
-				});
 				const projectId = getProjectIdIfSelected(this);
 				const response = await leadspickerApiRequest.call(this, 'GET', '/webhooks');
 				const availableWebhooks = normalizeWebhookList(response);
@@ -327,7 +323,6 @@ export class LeadspickerTrigger implements INodeType {
 			},
 			async create(this: IHookFunctions): Promise<boolean> {
 				const feature = getSelectedFeature(this);
-				logToConsole('Creating Leadspicker webhook...', { feature });
 				const webhookUrl = this.getNodeWebhookUrl('default');
 				const projectId = getProjectIdIfSelected(this);
 				const webhookName =
@@ -357,7 +352,6 @@ export class LeadspickerTrigger implements INodeType {
 				return true;
 			},
 			async delete(this: IHookFunctions): Promise<boolean> {
-				logToConsole('Deleting Leadspicker webhook...', {});
 				const staticData = this.getWorkflowStaticData('node') as IDataObject & {
 					webhookId?: number;
 				};
@@ -384,7 +378,6 @@ export class LeadspickerTrigger implements INodeType {
 
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
 		const feature = getSelectedFeature(this);
-		logToConsole('Received Leadspicker webhook event', { feature });
 		const payloads = buildWebhookOutput.call(this, feature);
 		const executionData: INodeExecutionData[] = this.helpers.returnJsonArray(payloads);
 		return {
