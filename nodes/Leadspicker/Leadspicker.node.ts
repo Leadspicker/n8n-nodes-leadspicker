@@ -69,6 +69,33 @@ export class Leadspicker implements INodeType {
 		return undefined;
 	}
 
+	/**
+	 * Loads project dropdown options from a listing endpoint (`/projects`, `/lists`, ...).
+	 */
+	private static async loadProjectOptions(
+		context: ILoadOptionsFunctions,
+		endpoint: string,
+	): Promise<INodePropertyOptions[]> {
+		const query: IDataObject = { limit: 50 };
+		const response = await leadspickerApiRequest.call(context, 'GET', endpoint, {}, query);
+		const list = Array.isArray(response)
+			? (response as IDataObject[])
+			: Array.isArray((response as IDataObject)?.results)
+				? ((response as IDataObject).results as IDataObject[])
+				: [];
+		const options: INodePropertyOptions[] = [];
+		for (const campaign of list) {
+			const id = Leadspicker.toNumericId(campaign?.id as NodeParameterValueType);
+			if (id === undefined) continue;
+			const name =
+				typeof campaign?.name === 'string' && campaign.name.trim() !== ''
+					? campaign.name.trim()
+					: `Campaign #${id}`;
+			options.push({ name, value: id.toString() });
+		}
+		return options;
+	}
+
 	private static getIdOrThrow(
 		context: IExecuteFunctions,
 		value: unknown,
@@ -336,25 +363,14 @@ export class Leadspicker implements INodeType {
 
 	methods = {
 		loadOptions: {
+			// Every project kind (both lists and sequences).
 			async getCampaigns(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const query: IDataObject = { limit: 50 };
-				const response = await leadspickerApiRequest.call(this, 'GET', '/projects', {}, query);
-				const list = Array.isArray(response)
-					? (response as IDataObject[])
-					: Array.isArray((response as IDataObject)?.results)
-						? ((response as IDataObject).results as IDataObject[])
-						: [];
-				const options: INodePropertyOptions[] = [];
-				for (const campaign of list) {
-					const id = Leadspicker.toNumericId(campaign?.id as NodeParameterValueType);
-					if (id === undefined) continue;
-					const name =
-						typeof campaign?.name === 'string' && campaign.name.trim() !== ''
-							? campaign.name.trim()
-							: `Campaign #${id}`;
-					options.push({ name, value: id.toString() });
-				}
-				return options;
+				return Leadspicker.loadProjectOptions(this, '/projects');
+			},
+			// Lists only — the project kind that holds contacts, and therefore the only
+			// valid target when leads are created.
+			async getLists(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return Leadspicker.loadProjectOptions(this, '/lists');
 			},
 			async getLeads(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const projectId = Leadspicker.getCampaignIdForLeadOptions(this);
@@ -734,7 +750,10 @@ export class Leadspicker implements INodeType {
 				const campaignName = context.getNodeParameter('projectName', i) as string;
 				const campaignTimezone = context.getNodeParameter('projectTimezone', i) as string;
 				const body: IDataObject = { name: campaignName, timezone: campaignTimezone };
-				return leadspickerApiRequest.call(context, 'POST', '/projects', body);
+				// `/lists` creates the contact-holding project kind. The kind comes from the
+				// route, so no `type` is sent. Leads can only be added to a list, which is why
+				// this no longer uses the deprecated `POST /projects` (that one makes a sequence).
+				return leadspickerApiRequest.call(context, 'POST', '/lists', body);
 			}
 			case 'delete': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(

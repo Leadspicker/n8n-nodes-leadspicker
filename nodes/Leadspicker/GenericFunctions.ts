@@ -1,4 +1,5 @@
 import { sleep } from 'n8n-workflow';
+import { version as packageVersion } from '../../package.json';
 import type {
 	IExecuteFunctions,
 	IHookFunctions,
@@ -8,6 +9,10 @@ import type {
 	ILoadOptionsFunctions,
 	IWebhookFunctions,
 } from 'n8n-workflow';
+
+// Identifies plugin traffic to the Leadspicker API, so it can be told apart from raw
+// API calls and so upgrade adoption of this package stays measurable server-side.
+export const USER_AGENT = `n8n-nodes-leadspicker/${packageVersion}`;
 
 const RATE_LIMIT_THRESHOLD = 10;
 const THROTTLE_DELAY_MS = 1000;
@@ -49,7 +54,7 @@ export async function leadspickerApiRequest(
 	query: IDataObject = {},
 ) {
 	const options: IHttpRequestOptions = {
-		headers: {},
+		headers: { 'User-Agent': USER_AGENT },
 		method,
 		url: `https://app.leadspicker.com/app/sb/api${endpoint}`,
 		//url: `http://localhost:8000/app/sb/api${endpoint}`,

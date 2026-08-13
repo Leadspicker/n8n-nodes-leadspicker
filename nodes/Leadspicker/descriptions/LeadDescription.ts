@@ -85,7 +85,9 @@ export const leadFields: INodeProperties[] = [
 			{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
 		],
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			// Leads live in lists, not sequences — offer only lists here. A sequence ID can
+			// still be supplied through the manual/expression escape hatch.
+			loadOptionsMethod: 'getLists',
 		},
 		description:
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
