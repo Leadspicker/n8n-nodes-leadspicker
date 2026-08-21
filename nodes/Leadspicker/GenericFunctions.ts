@@ -192,10 +192,15 @@ export async function loadProjectOptions(
 		const id = toNumericId(project?.id);
 		if (id === undefined || seen.has(id)) continue;
 		seen.add(id);
+		const kind = PROJECT_KIND_LABEL[String(project?.type)];
 		const rawName = typeof project?.name === 'string' ? project.name.trim() : '';
-		const name = rawName !== '' ? rawName : `Campaign #${id}`;
-		const kind = showKind ? PROJECT_KIND_LABEL[String(project?.type)] : undefined;
-		options.push({ name: kind ? `${name} (${kind})` : name, value: id.toString() });
+		// An unnamed project is labelled by its kind and id, which already tells it
+		// apart, so it takes no kind suffix on top.
+		const name =
+			rawName !== ''
+				? `${rawName}${showKind && kind ? ` (${kind})` : ''}`
+				: `${kind ?? 'Project'} #${id}`;
+		options.push({ name, value: id.toString() });
 	}
 	return options;
 }

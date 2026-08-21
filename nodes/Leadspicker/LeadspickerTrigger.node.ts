@@ -227,22 +227,22 @@ export class LeadspickerTrigger implements INodeType {
 				description: 'Name that will be displayed in Leadspicker for the created webhook',
 			},
 			{
-				displayName: 'Project Name or ID',
+				displayName: 'List or Sequence Name or ID',
 				name: 'projectId',
 				type: 'options',
 				default: '',
 				options: [
-					{ name: 'All Projects (Default)', value: '' },
-					{ name: 'Enter Project ID manually...', value: MANUAL_ID_OPTION },
+					{ name: 'All Lists and Sequences (Default)', value: '' },
+					{ name: 'Enter List or Sequence ID manually...', value: MANUAL_ID_OPTION },
 				],
 				typeOptions: {
 					loadOptionsMethod: 'getCampaigns',
 				},
 				description:
-					'Choose from the list, specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>, or leave empty to listen to all projects. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+					'Choose from the list, specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>, or leave empty to listen to all lists and sequences. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
-				displayName: 'Project ID',
+				displayName: 'List or Sequence ID',
 				name: 'projectIdManual',
 				type: 'number',
 				required: true,
@@ -252,7 +252,7 @@ export class LeadspickerTrigger implements INodeType {
 					},
 				},
 				default: 0,
-				description: 'Project ID to filter events by',
+				description: 'List or sequence ID to filter events by',
 			},
 		],
 	};

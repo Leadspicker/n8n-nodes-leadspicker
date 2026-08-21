@@ -400,7 +400,7 @@ export class Leadspicker implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle:
-			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach", account: "Account" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
+			'={{( { person: "Lead", project: "List or Sequence", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach", account: "Account" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
 		defaults: {
 			name: 'Leadspicker',
@@ -426,10 +426,6 @@ export class Leadspicker implements INodeType {
 						value: 'account',
 					},
 					{
-						name: 'Campaign',
-						value: 'project',
-					},
-					{
 						name: 'Global Exclusion List',
 						value: 'globalExclusionList',
 					},
@@ -440,6 +436,10 @@ export class Leadspicker implements INodeType {
 					{
 						name: 'Linkedin',
 						value: 'linkedinActivity',
+					},
+					{
+						name: 'List or Sequence',
+						value: 'project',
 					},
 					{
 						name: 'Outreach',
@@ -707,7 +707,7 @@ export class Leadspicker implements INodeType {
 	}
 
 	/**
-	 * Handles operations for the 'Campaign' resource.
+	 * Handles operations for the 'List or Sequence' resource.
 	 */
 	private static async handleCampaignOperations(
 		context: IExecuteFunctions,
@@ -765,7 +765,7 @@ export class Leadspicker implements INodeType {
 				return [
 					{
 						status: 'success',
-						message: 'Lead was successfully added to Campaign Exclusion List.',
+						message: 'Lead was successfully added to the Sequence Exclusion List.',
 					},
 				];
 			}
@@ -796,7 +796,7 @@ export class Leadspicker implements INodeType {
 				return [
 					{
 						status: 'success',
-						message: 'Lead was successfully removed from Campaign Exclusion List.',
+						message: 'Lead was successfully removed from the Sequence Exclusion List.',
 					},
 				];
 			}
@@ -922,7 +922,7 @@ export class Leadspicker implements INodeType {
 			default:
 				throw new NodeOperationError(
 					context.getNode(),
-					`The operation "${operation}" is not supported for Campaign resource.`,
+					`The operation "${operation}" is not supported for the List or Sequence resource.`,
 				);
 		}
 	}
