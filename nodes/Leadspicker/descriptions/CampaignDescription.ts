@@ -78,39 +78,48 @@ export const campaignOperations: INodeProperties[] = [
 		},
 		options: [
 			{
-				name: 'Add Lead to Campaign Exclusion List',
+				name: 'Add Lead to Sequence Exclusion List',
 				value: 'addToExclusionList',
-				description: 'Blacklist a lead identifier for a campaign',
+				description: 'Blacklist a lead identifier for a sequence',
 				action: 'Add lead to exclusion list',
 			},
 			{
-				name: 'Create Campaign',
+				name: 'Create List',
 				value: 'create',
-				description: 'Create a new campaign',
-				action: 'Create a campaign',
+				description: 'Create a new list to hold leads',
+				action: 'Create a list',
 			},
 			{
-				name: 'Delete Campaign',
+				name: 'Delete List',
+				value: 'deleteList',
+				description: 'Delete a list and the contacts it holds',
+				action: 'Delete a list',
+			},
+			{
+				// Keeps the original `delete` value: this operation already addressed
+				// `/sequences/{id}`, so a saved workflow sends the identical request and
+				// only the wording and the picker's kind change.
+				name: 'Delete Sequence',
 				value: 'delete',
-				description: 'Delete a campaign',
-				action: 'Delete a campaign',
+				description: 'Delete a sequence and its outreach steps',
+				action: 'Delete a sequence',
 			},
 			{
-				name: 'Get Campaign Log',
-				value: 'getCampaignLog',
-				description: 'Retrieve campaign timeline events',
-				action: 'Get campaign log',
-			},
-			{
-				name: 'Get Exclusion List',
+				name: 'Get Sequence Exclusion List',
 				value: 'getExclusionList',
-				description: 'Retrieve all identifiers blacklisted for a campaign',
-				action: 'Get exclusion list',
+				description: 'Retrieve all identifiers blacklisted for a sequence',
+				action: 'Get sequence exclusion list',
 			},
 			{
-				name: 'Remove Lead From Campaign Exclusion List',
+				name: 'Get Sequence Log',
+				value: 'getCampaignLog',
+				description: 'Retrieve timeline events for a sequence',
+				action: 'Get sequence log',
+			},
+			{
+				name: 'Remove Lead From Sequence Exclusion List',
 				value: 'removeFromExclusionList',
-				description: 'Delete a specific identifier from a campaign blacklist',
+				description: 'Delete a specific identifier from a sequence blacklist',
 				action: 'Remove lead from exclusion list',
 			},
 		],
@@ -120,7 +129,7 @@ export const campaignOperations: INodeProperties[] = [
 
 export const campaignFields: INodeProperties[] = [
 	{
-		displayName: 'Campaign Name',
+		displayName: 'List Name',
 		name: 'projectName',
 		type: 'string',
 		required: true,
@@ -133,10 +142,10 @@ export const campaignFields: INodeProperties[] = [
 		// Use a sentinel so "no filter" behaves like a selectable option.
 		// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
 		default: '',
-		description: 'Name of the campaign to create',
+		description: 'Name of the list to create',
 	},
 	{
-		displayName: 'Campaign Timezone',
+		displayName: 'List Timezone',
 		name: 'projectTimezone',
 		type: 'options',
 		// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
@@ -147,7 +156,7 @@ export const campaignFields: INodeProperties[] = [
 			name: timezone,
 			value: timezone,
 		})),
-		description: 'Timezone of the campaign',
+		description: 'Timezone of the list',
 		displayOptions: {
 			show: {
 				resource: ['project'],
@@ -156,7 +165,46 @@ export const campaignFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Campaign Name or ID',
+		displayName: 'List Name or ID',
+		name: 'listDeleteId',
+		type: 'options',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['deleteList'],
+			},
+		},
+		// Use a sentinel so "no filter" behaves like a selectable option.
+		// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
+		default: '',
+		typeOptions: {
+			loadOptionsMethod: 'getLists',
+		},
+		options: [
+			{ name: 'Select a list...', value: '' },
+			{ name: 'Enter List ID manually...', value: MANUAL_ID_OPTION },
+		],
+		description:
+			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+	},
+	{
+		displayName: 'List ID',
+		name: 'listDeleteIdManual',
+		type: 'number',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['deleteList'],
+				listDeleteId: [MANUAL_ID_OPTION],
+			},
+		},
+		default: 0,
+		description: 'ID of the list to delete',
+	},
+	{
+		displayName: 'Sequence Name or ID',
 		name: 'projectDeleteId',
 		type: 'options',
 		required: true,
@@ -170,17 +218,17 @@ export const campaignFields: INodeProperties[] = [
 		// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
 		default: '',
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			loadOptionsMethod: 'getSequences',
 		},
 		options: [
-			{ name: 'Select a campaign...', value: '' },
-			{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
+			{ name: 'Select a sequence...', value: '' },
+			{ name: 'Enter Sequence ID manually...', value: MANUAL_ID_OPTION },
 		],
 		description:
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	},
 	{
-		displayName: 'Campaign ID',
+		displayName: 'Sequence ID',
 		name: 'projectDeleteIdManual',
 		type: 'number',
 		required: true,
@@ -192,10 +240,10 @@ export const campaignFields: INodeProperties[] = [
 			},
 		},
 		default: 0,
-		description: 'ID of the campaign to delete',
+		description: 'ID of the sequence to delete',
 	},
 	{
-		displayName: 'Campaign Name or ID',
+		displayName: 'Sequence Name or ID',
 		name: 'projectBlacklistId',
 		type: 'options',
 		required: true,
@@ -207,17 +255,17 @@ export const campaignFields: INodeProperties[] = [
 		},
 		default: '',
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			loadOptionsMethod: 'getSequences',
 		},
 		options: [
-			{ name: 'Select a campaign...', value: '' },
-			{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
+			{ name: 'Select a sequence...', value: '' },
+			{ name: 'Enter Sequence ID manually...', value: MANUAL_ID_OPTION },
 		],
 		description:
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	},
 	{
-		displayName: 'Campaign ID',
+		displayName: 'Sequence ID',
 		name: 'projectBlacklistIdManual',
 		type: 'number',
 		required: true,
@@ -229,7 +277,7 @@ export const campaignFields: INodeProperties[] = [
 			},
 		},
 		default: 0,
-		description: 'ID of the campaign whose exclusion list will be updated or retrieved',
+		description: 'ID of the sequence whose exclusion list will be updated or retrieved',
 	},
 	{
 		displayName: 'Identifier to Exclude',
@@ -248,7 +296,7 @@ export const campaignFields: INodeProperties[] = [
 			'LinkedIn profile, email, domain, or company profile URL to add or remove from the exclusion list',
 	},
 	{
-		displayName: 'Campaign Name or ID',
+		displayName: 'Sequence Name or ID',
 		name: 'projectLogId',
 		type: 'options',
 		required: true,
@@ -260,17 +308,17 @@ export const campaignFields: INodeProperties[] = [
 		},
 		default: '',
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			loadOptionsMethod: 'getSequences',
 		},
 		options: [
-			{ name: 'Select a campaign...', value: '' },
-			{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
+			{ name: 'Select a sequence...', value: '' },
+			{ name: 'Enter Sequence ID manually...', value: MANUAL_ID_OPTION },
 		],
 		description:
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	},
 	{
-		displayName: 'Campaign ID',
+		displayName: 'Sequence ID',
 		name: 'projectLogIdManual',
 		type: 'number',
 		required: true,
@@ -282,7 +330,7 @@ export const campaignFields: INodeProperties[] = [
 			},
 		},
 		default: 0,
-		description: 'ID of the campaign to fetch timeline events from',
+		description: 'ID of the sequence to fetch timeline events from',
 	},
 	{
 		displayName: 'Person Name or ID',
@@ -318,7 +366,7 @@ export const campaignFields: INodeProperties[] = [
 			},
 		},
 		default: '',
-		description: 'Person ID to use when filtering the campaign log manually',
+		description: 'Person ID to use when filtering the timeline events manually',
 	},
 	{
 		displayName: 'Fulltext Search',

@@ -14,7 +14,15 @@ import type {
 	GenericValue,
 } from 'n8n-workflow';
 
-import { leadspickerApiRequest, isPlainObject } from './GenericFunctions';
+import {
+	ALL_PROJECTS_ENDPOINTS,
+	LISTS_SIMPLE_ENDPOINT,
+	SEQUENCES_SIMPLE_ENDPOINT,
+	isPlainObject,
+	leadspickerApiRequest,
+	loadProjectOptions,
+	toNumericId,
+} from './GenericFunctions';
 import {
 	accountFields,
 	accountOperations,
@@ -58,23 +66,12 @@ interface ISentimentFilter {
 const DEFAULT_PAGE_SIZE = 1000;
 
 export class Leadspicker implements INodeType {
-	private static toNumericId(value: unknown): number | undefined {
-		if (typeof value === 'number' && Number.isFinite(value)) {
-			return value;
-		}
-		if (typeof value === 'string' && value.trim() !== '') {
-			const parsed = Number(value);
-			return Number.isNaN(parsed) ? undefined : parsed;
-		}
-		return undefined;
-	}
-
 	private static getIdOrThrow(
 		context: IExecuteFunctions,
 		value: unknown,
 		fieldName: string,
 	): number {
-		const id = Leadspicker.toNumericId(value);
+		const id = toNumericId(value);
 		if (id === undefined) {
 			throw new NodeOperationError(context.getNode(), `Please select a valid ${fieldName}.`);
 		}
@@ -82,7 +79,7 @@ export class Leadspicker implements INodeType {
 	}
 
 	private static toNumberOrNull(value: unknown): number | null {
-		const numeric = Leadspicker.toNumericId(value as NodeParameterValueType);
+		const numeric = toNumericId(value as NodeParameterValueType);
 		return numeric ?? null;
 	}
 
@@ -123,9 +120,9 @@ export class Leadspicker implements INodeType {
 			return undefined;
 		}
 		if (selection === MANUAL_ID_OPTION) {
-			return Leadspicker.toNumericId(params[manualName]);
+			return toNumericId(params[manualName]);
 		}
-		return Leadspicker.toNumericId(selection);
+		return toNumericId(selection);
 	}
 
 	private static getCampaignIdForLeadOptions(context: ILoadOptionsFunctions): number | undefined {
@@ -225,10 +222,7 @@ export class Leadspicker implements INodeType {
 		for (const [key, value] of Object.entries(clone)) {
 			if (Array.isArray(value) || isPlainObject(value)) {
 				const normalizedValue = Leadspicker.flattenLeadPayload(value) as
-					| GenericValue
-					| IDataObject
-					| GenericValue[]
-					| IDataObject[];
+					GenericValue | IDataObject | GenericValue[] | IDataObject[];
 				clone[key] = normalizedValue;
 			}
 		}
@@ -336,25 +330,20 @@ export class Leadspicker implements INodeType {
 
 	methods = {
 		loadOptions: {
+			// Every project kind. The deprecated all-kinds listing served both in one
+			// call; the two kind listings are merged instead.
 			async getCampaigns(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const query: IDataObject = { limit: 50 };
-				const response = await leadspickerApiRequest.call(this, 'GET', '/projects', {}, query);
-				const list = Array.isArray(response)
-					? (response as IDataObject[])
-					: Array.isArray((response as IDataObject)?.results)
-						? ((response as IDataObject).results as IDataObject[])
-						: [];
-				const options: INodePropertyOptions[] = [];
-				for (const campaign of list) {
-					const id = Leadspicker.toNumericId(campaign?.id as NodeParameterValueType);
-					if (id === undefined) continue;
-					const name =
-						typeof campaign?.name === 'string' && campaign.name.trim() !== ''
-							? campaign.name.trim()
-							: `Campaign #${id}`;
-					options.push({ name, value: id.toString() });
-				}
-				return options;
+				return loadProjectOptions(this, ALL_PROJECTS_ENDPOINTS);
+			},
+			// Lists only — the project kind that holds contacts, and therefore the only
+			// valid target when leads are created.
+			async getLists(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return loadProjectOptions(this, [LISTS_SIMPLE_ENDPOINT]);
+			},
+			// Sequences only — exclusion lists, the timeline log and reply filters are
+			// sequence work, so offering lists there would only be noise.
+			async getSequences(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return loadProjectOptions(this, [SEQUENCES_SIMPLE_ENDPOINT]);
 			},
 			async getLeads(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const projectId = Leadspicker.getCampaignIdForLeadOptions(this);
@@ -379,7 +368,7 @@ export class Leadspicker implements INodeType {
 							: [];
 				const options: INodePropertyOptions[] = [];
 				for (const lead of list) {
-					const id = Leadspicker.toNumericId(lead?.id as NodeParameterValueType);
+					const id = toNumericId(lead?.id as NodeParameterValueType);
 					if (id === undefined) continue;
 					const leadData = (lead?.person_data ?? {}) as IDataObject;
 					const firstName = [leadData.first_name, lead?.first_name].find(
@@ -414,7 +403,7 @@ export class Leadspicker implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle:
-			'={{( { person: "Lead", project: "Campaign", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach", account: "Account" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
+			'={{( { person: "Lead", project: "List or Sequence", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach", account: "Account" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
 		defaults: {
 			name: 'Leadspicker',
@@ -440,10 +429,6 @@ export class Leadspicker implements INodeType {
 						value: 'account',
 					},
 					{
-						name: 'Campaign',
-						value: 'project',
-					},
-					{
 						name: 'Global Exclusion List',
 						value: 'globalExclusionList',
 					},
@@ -454,6 +439,10 @@ export class Leadspicker implements INodeType {
 					{
 						name: 'Linkedin',
 						value: 'linkedinActivity',
+					},
+					{
+						name: 'List or Sequence',
+						value: 'project',
 					},
 					{
 						name: 'Outreach',
@@ -721,7 +710,7 @@ export class Leadspicker implements INodeType {
 	}
 
 	/**
-	 * Handles operations for the 'Campaign' resource.
+	 * Handles operations for the 'List or Sequence' resource.
 	 */
 	private static async handleCampaignOperations(
 		context: IExecuteFunctions,
@@ -734,17 +723,32 @@ export class Leadspicker implements INodeType {
 				const campaignName = context.getNodeParameter('projectName', i) as string;
 				const campaignTimezone = context.getNodeParameter('projectTimezone', i) as string;
 				const body: IDataObject = { name: campaignName, timezone: campaignTimezone };
-				return leadspickerApiRequest.call(context, 'POST', '/projects', body);
+				// `/lists` creates the contact-holding project kind. The kind comes from the
+				// route, so no `type` is sent. Leads can only be added to a list, which is why
+				// this uses the list route rather than the deprecated create-a-sequence one.
+				return leadspickerApiRequest.call(context, 'POST', '/lists', body);
+			}
+			case 'deleteList': {
+				const listId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'listDeleteId',
+					'listDeleteIdManual',
+					'list',
+					i,
+				);
+				return leadspickerApiRequest.call(context, 'DELETE', `/lists/${listId}`);
 			}
 			case 'delete': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(
 					context,
 					'projectDeleteId',
 					'projectDeleteIdManual',
-					'project',
+					'sequence',
 					i,
 				);
-				return leadspickerApiRequest.call(context, 'DELETE', `/projects/${campaignId}`);
+				// Same request the operation has always sent, so a workflow saved before
+				// the split is untouched — only the wording and the picker's kind changed.
+				return leadspickerApiRequest.call(context, 'DELETE', `/sequences/${campaignId}`);
 			}
 			case 'addToExclusionList': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(
@@ -767,14 +771,14 @@ export class Leadspicker implements INodeType {
 				await leadspickerApiRequest.call(
 					context,
 					'PUT',
-					`/projects/${campaignId}/blacklist-text`,
+					`/sequences/${campaignId}/blacklist-text`,
 					body,
 					query,
 				);
 				return [
 					{
 						status: 'success',
-						message: 'Lead was successfully added to Campaign Exclusion List.',
+						message: 'Lead was successfully added to the Sequence Exclusion List.',
 					},
 				];
 			}
@@ -798,14 +802,14 @@ export class Leadspicker implements INodeType {
 				await leadspickerApiRequest.call(
 					context,
 					'DELETE',
-					`/projects/${campaignId}/blacklist-text`,
+					`/sequences/${campaignId}/blacklist-text`,
 					{},
 					query,
 				);
 				return [
 					{
 						status: 'success',
-						message: 'Lead was successfully removed from Campaign Exclusion List.',
+						message: 'Lead was successfully removed from the Sequence Exclusion List.',
 					},
 				];
 			}
@@ -821,7 +825,7 @@ export class Leadspicker implements INodeType {
 					return await leadspickerApiRequest.call(
 						context,
 						'GET',
-						`/projects/${campaignId}/blacklist-text`,
+						`/sequences/${campaignId}/blacklist-text`,
 					);
 				} catch (error) {
 					const httpCode =
@@ -865,9 +869,9 @@ export class Leadspicker implements INodeType {
 				let personId: number | undefined;
 				if (personSelection === MANUAL_ID_OPTION) {
 					const manualValue = context.getNodeParameter('projectLogPersonIdManual', i);
-					personId = Leadspicker.toNumericId(manualValue);
+					personId = toNumericId(manualValue);
 				} else {
-					personId = Leadspicker.toNumericId(personSelection);
+					personId = toNumericId(personSelection);
 				}
 				const eventTypes = context.getNodeParameter('projectLogEventTypes', i, []) as string[];
 				const outreachStepTypes = context.getNodeParameter(
@@ -905,7 +909,8 @@ export class Leadspicker implements INodeType {
 						}
 					}
 				}
-				let path = `/projects/${campaignId}/events`;
+				// Timeline events are shared by both kinds; same unknown-kind case as delete.
+				let path = `/sequences/${campaignId}/events`;
 				if (queryParts.length > 0) {
 					path += `?${queryParts.join('&')}`;
 				}
@@ -930,7 +935,7 @@ export class Leadspicker implements INodeType {
 			default:
 				throw new NodeOperationError(
 					context.getNode(),
-					`The operation "${operation}" is not supported for Campaign resource.`,
+					`The operation "${operation}" is not supported for the List or Sequence resource.`,
 				);
 		}
 	}
@@ -960,9 +965,9 @@ export class Leadspicker implements INodeType {
 				campaignsFilter.project
 					.map((item) => {
 						if (item.id === MANUAL_ID_OPTION) {
-							return Leadspicker.toNumericId(item.idManual);
+							return toNumericId(item.idManual);
 						}
-						return Leadspicker.toNumericId(item.id);
+						return toNumericId(item.id);
 					})
 					.filter((id): id is number => id !== undefined)
 					.forEach((id) => rawQueryParts.push(`projects=${encodeURIComponent(id)}`));
@@ -1378,7 +1383,7 @@ export class Leadspicker implements INodeType {
 					{},
 				) as IDataObject;
 				const query: IDataObject = {};
-				const memberId = Leadspicker.toNumericId(filters.memberId as NodeParameterValueType);
+				const memberId = toNumericId(filters.memberId as NodeParameterValueType);
 				if (memberId !== undefined) {
 					query.member_id = memberId;
 				}

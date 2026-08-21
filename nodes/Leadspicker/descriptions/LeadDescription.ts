@@ -17,13 +17,13 @@ export const leadOperations: INodeProperties[] = [
 			{
 				name: 'Bulk Create Leads',
 				value: 'bulkCreate',
-				description: 'Create multiple leads in a campaign',
+				description: 'Create multiple leads in a list',
 				action: 'Bulk create leads',
 			},
 			{
 				name: 'Create Lead',
 				value: 'create',
-				description: 'Create a new lead in a campaign',
+				description: 'Create a new lead in a list',
 				action: 'Create a lead',
 			},
 			{
@@ -53,7 +53,7 @@ export const leadOperations: INodeProperties[] = [
 			{
 				name: 'List Leads',
 				value: 'list',
-				description: 'List leads in a campaign',
+				description: 'Retrieve the leads in a list',
 				action: 'List leads',
 			},
 			{
@@ -69,7 +69,7 @@ export const leadOperations: INodeProperties[] = [
 
 export const leadFields: INodeProperties[] = [
 	{
-		displayName: 'Campaign Name or ID',
+		displayName: 'List Name or ID',
 		name: 'projectId',
 		type: 'options',
 		required: true,
@@ -81,17 +81,19 @@ export const leadFields: INodeProperties[] = [
 		},
 		default: '',
 		options: [
-			{ name: 'Select a campaign...', value: '' },
-			{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
+			{ name: 'Select a list...', value: '' },
+			{ name: 'Enter List ID manually...', value: MANUAL_ID_OPTION },
 		],
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			// Leads live in lists, not sequences — offer only lists here. A sequence ID can
+			// still be supplied through the manual/expression escape hatch.
+			loadOptionsMethod: 'getLists',
 		},
 		description:
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	},
 	{
-		displayName: 'Campaign ID',
+		displayName: 'List ID',
 		name: 'projectIdManual',
 		type: 'number',
 		required: true,
@@ -103,10 +105,10 @@ export const leadFields: INodeProperties[] = [
 			},
 		},
 		default: 0,
-		description: 'ID of the campaign that contains the lead records',
+		description: 'ID of the list that contains the lead records',
 	},
 	{
-		displayName: 'Lead Lookup Campaign Name or ID',
+		displayName: 'Lead Lookup List or Sequence Name or ID',
 		name: 'personLookupProjectId',
 		type: 'options',
 		displayOptions: {
@@ -117,8 +119,8 @@ export const leadFields: INodeProperties[] = [
 		},
 		default: '',
 		options: [
-			{ name: 'Select a campaign...', value: '' },
-			{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
+			{ name: 'Select a List or Sequence...', value: '' },
+			{ name: 'Enter List or Sequence ID manually...', value: MANUAL_ID_OPTION },
 		],
 		typeOptions: {
 			loadOptionsMethod: 'getCampaigns',
@@ -127,7 +129,7 @@ export const leadFields: INodeProperties[] = [
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	},
 	{
-		displayName: 'Lead Lookup Campaign ID',
+		displayName: 'Lead Lookup List or Sequence ID',
 		name: 'personLookupProjectIdManual',
 		type: 'number',
 		required: true,
@@ -139,7 +141,7 @@ export const leadFields: INodeProperties[] = [
 			},
 		},
 		default: 0,
-		description: 'Campaign ID to load leads from when entering manually',
+		description: 'List or sequence ID to load leads from when entering manually',
 	},
 	{
 		displayName: 'Lead Name or ID',

@@ -67,37 +67,37 @@ export const replyFields: INodeProperties[] = [
 				],
 			},
 			{
-				displayName: 'Campaigns',
+				displayName: 'Sequences',
 				name: 'projects',
 				type: 'fixedCollection',
-				placeholder: 'Add Campaign',
+				placeholder: 'Add Sequence',
 				typeOptions: {
 					multipleValues: true,
 				},
 				default: {},
-				description: 'Campaign IDs to filter by',
+				description: 'Sequence IDs to filter by',
 				options: [
 					{
 						name: 'project',
-						displayName: 'Campaign',
+						displayName: 'Sequence',
 						values: [
 							{
-								displayName: 'Campaign Name or ID',
+								displayName: 'Sequence Name or ID',
 								name: 'id',
 								type: 'options',
 								default: '',
 								options: [
-									{ name: 'Select a campaign...', value: '' },
-									{ name: 'Enter Campaign ID manually...', value: MANUAL_ID_OPTION },
+									{ name: 'Select a sequence...', value: '' },
+									{ name: 'Enter Sequence ID manually...', value: MANUAL_ID_OPTION },
 								],
 								typeOptions: {
-									loadOptionsMethod: 'getCampaigns',
+									loadOptionsMethod: 'getSequences',
 								},
 								description:
 									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 							},
 							{
-								displayName: 'Campaign ID',
+								displayName: 'Sequence ID',
 								name: 'idManual',
 								type: 'number',
 								required: true,
@@ -107,7 +107,7 @@ export const replyFields: INodeProperties[] = [
 									},
 								},
 								default: 0,
-								description: 'Campaign ID to filter by',
+								description: 'Sequence ID to filter by',
 							},
 						],
 					},
