@@ -104,8 +104,11 @@ describe('Backwards compatibility with workflows saved before the endpoint split
 				(property.displayOptions?.show?.resource as string[] | undefined)?.includes('project'),
 		);
 		assert.ok(operation, 'campaign operation property not found');
-		const values = (operation.options as any[]).map((option) => option.value).sort();
-		assert.deepEqual(values, CAMPAIGN_OPERATIONS_0_4_4);
+		const values = (operation.options as any[]).map((option) => option.value);
+		// Subset, not equality: adding an operation is additive and safe, while losing
+		// one orphans the workflows that stored it.
+		const missing = CAMPAIGN_OPERATIONS_0_4_4.filter((op) => !values.includes(op));
+		assert.deepEqual(missing, []);
 	});
 
 	it('keeps the manual-ID sentinel every project picker stores', () => {

@@ -49,11 +49,20 @@ function createContext(
 	} as unknown as IExecuteFunctions & ILoadOptionsFunctions;
 }
 
-const API = 'https://app.leadspicker.com/app/sb/api';
+// The host is deliberately not asserted: it is switched to a local backend during
+// manual testing, and the endpoint each operation addresses is what these tests are
+// about. `path()` compares the API-relative path so the suite survives that swap.
+const API_PREFIX = '/app/sb/api';
+
+function path(url: string) {
+	const { pathname } = new URL(url);
+	assert.ok(pathname.startsWith(API_PREFIX), `unexpected API prefix: ${pathname}`);
+	return pathname.slice(API_PREFIX.length);
+}
 
 describe('Project kind endpoints', () => {
 	describe('campaign operations address a kind prefix, never /projects', () => {
-		it('deletes through the sequence prefix, which serves either kind', async () => {
+		it('deletes a sequence through the sequence prefix', async () => {
 			const requests: RecordedRequest[] = [];
 			const context = createContext(
 				{ operation: 'delete', projectDeleteId: '42' },
@@ -64,7 +73,25 @@ describe('Project kind endpoints', () => {
 
 			assert.equal(requests.length, 1);
 			assert.equal(requests[0].method, 'DELETE');
-			assert.equal(requests[0].url, `${API}/sequences/42`);
+			// The value stayed `delete` precisely so this request is byte-identical to
+			// the one a workflow saved before the split already sends.
+			assert.equal(path(requests[0].url), '/sequences/42');
+		});
+
+		it('deletes a list through the list prefix', async () => {
+			const requests: RecordedRequest[] = [];
+			const context = createContext(
+				{ operation: 'deleteList', listDeleteId: '7' },
+				requests,
+			);
+
+			await (Leadspicker as any).handleCampaignOperations(context, 0);
+
+			assert.equal(requests.length, 1);
+			assert.equal(requests[0].method, 'DELETE');
+			// Splitting the operation by kind is what lets this address /lists at all —
+			// the merged operation had to fall back to /sequences for an unknown kind.
+			assert.equal(path(requests[0].url), '/lists/7');
 		});
 
 		it('writes the exclusion list on the sequence prefix, its only valid one', async () => {
@@ -82,7 +109,7 @@ describe('Project kind endpoints', () => {
 
 			assert.equal(requests.length, 1);
 			assert.equal(requests[0].method, 'PUT');
-			assert.equal(requests[0].url, `${API}/sequences/7/blacklist-text`);
+			assert.equal(path(requests[0].url), '/sequences/7/blacklist-text');
 			assert.deepEqual(requests[0].body, { data: 'spam@example.com' });
 		});
 
@@ -100,7 +127,7 @@ describe('Project kind endpoints', () => {
 			await (Leadspicker as any).handleCampaignOperations(context, 0);
 
 			assert.equal(requests[0].method, 'DELETE');
-			assert.equal(requests[0].url, `${API}/sequences/7/blacklist-text`);
+			assert.equal(path(requests[0].url), '/sequences/7/blacklist-text');
 		});
 
 		it('reads timeline events on the sequence prefix, which serves either kind', async () => {
@@ -114,10 +141,8 @@ describe('Project kind endpoints', () => {
 			await (Leadspicker as any).handleCampaignOperations(context, 0);
 
 			assert.equal(requests.length, 1);
-			assert.ok(
-				requests[0].url.startsWith(`${API}/sequences/9/events?`),
-				`unexpected url: ${requests[0].url}`,
-			);
+			assert.equal(path(requests[0].url), '/sequences/9/events');
+			assert.ok(requests[0].url.includes('?'), 'expected a query string on the events call');
 		});
 	});
 
@@ -139,10 +164,7 @@ describe('Project kind endpoints', () => {
 
 			const options = await loadOptions(new Leadspicker()).getLists.call(context);
 
-			assert.deepEqual(
-				requests.map((r) => r.url),
-				[`${API}/lists/simple`],
-			);
+			assert.deepEqual(requests.map((r) => path(r.url)), ['/lists/simple']);
 			// A single-kind picker needs no kind suffix — every entry is the same kind.
 			assert.deepEqual(options, [
 				{ name: 'DACH founders', value: '1' },
@@ -156,9 +178,9 @@ describe('Project kind endpoints', () => {
 
 			const options = await loadOptions(new Leadspicker()).getCampaigns.call(context);
 
-			assert.deepEqual(requests.map((r) => r.url).sort(), [
-				`${API}/lists/simple`,
-				`${API}/sequences/simple`,
+			assert.deepEqual(requests.map((r) => path(r.url)).sort(), [
+				'/lists/simple',
+				'/sequences/simple',
 			]);
 			// Each listing is newest-first on its own; the merge restores that across kinds.
 			assert.deepEqual(options, [
@@ -168,15 +190,25 @@ describe('Project kind endpoints', () => {
 			]);
 		});
 
+		it('offers only sequences where the operation is sequence work', async () => {
+			const requests: RecordedRequest[] = [];
+			const context = createContext({}, requests, responder);
+
+			const options = await loadOptions(new Leadspicker()).getSequences.call(context);
+
+			assert.deepEqual(requests.map((r) => path(r.url)), ['/sequences/simple']);
+			assert.deepEqual(options, [{ name: 'Q3 cold email', value: '3' }]);
+		});
+
 		it('feeds the trigger event filter from both kinds too', async () => {
 			const requests: RecordedRequest[] = [];
 			const context = createContext({}, requests, responder);
 
 			const options = await loadOptions(new LeadspickerTrigger()).getCampaigns.call(context);
 
-			assert.deepEqual(requests.map((r) => r.url).sort(), [
-				`${API}/lists/simple`,
-				`${API}/sequences/simple`,
+			assert.deepEqual(requests.map((r) => path(r.url)).sort(), [
+				'/lists/simple',
+				'/sequences/simple',
 			]);
 			assert.equal(options.length, 3);
 		});

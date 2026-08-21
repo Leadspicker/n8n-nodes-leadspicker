@@ -17,6 +17,7 @@ import type {
 import {
 	ALL_PROJECTS_ENDPOINTS,
 	LISTS_SIMPLE_ENDPOINT,
+	SEQUENCES_SIMPLE_ENDPOINT,
 	isPlainObject,
 	leadspickerApiRequest,
 	loadProjectOptions,
@@ -338,6 +339,11 @@ export class Leadspicker implements INodeType {
 			// valid target when leads are created.
 			async getLists(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				return loadProjectOptions(this, [LISTS_SIMPLE_ENDPOINT]);
+			},
+			// Sequences only — exclusion lists, the timeline log and reply filters are
+			// sequence work, so offering lists there would only be noise.
+			async getSequences(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return loadProjectOptions(this, [SEQUENCES_SIMPLE_ENDPOINT]);
 			},
 			async getLeads(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const projectId = Leadspicker.getCampaignIdForLeadOptions(this);
@@ -722,16 +728,26 @@ export class Leadspicker implements INodeType {
 				// this uses the list route rather than the deprecated create-a-sequence one.
 				return leadspickerApiRequest.call(context, 'POST', '/lists', body);
 			}
+			case 'deleteList': {
+				const listId = Leadspicker.getIdFromOptionOrManual(
+					context,
+					'listDeleteId',
+					'listDeleteIdManual',
+					'list',
+					i,
+				);
+				return leadspickerApiRequest.call(context, 'DELETE', `/lists/${listId}`);
+			}
 			case 'delete': {
 				const campaignId = Leadspicker.getIdFromOptionOrManual(
 					context,
 					'projectDeleteId',
 					'projectDeleteIdManual',
-					'project',
+					'sequence',
 					i,
 				);
-				// Delete is one of the groups both kinds share, and this picker offers both,
-				// so the id's kind is unknown here — see the prefix note in GenericFunctions.
+				// Same request the operation has always sent, so a workflow saved before
+				// the split is untouched — only the wording and the picker's kind changed.
 				return leadspickerApiRequest.call(context, 'DELETE', `/sequences/${campaignId}`);
 			}
 			case 'addToExclusionList': {

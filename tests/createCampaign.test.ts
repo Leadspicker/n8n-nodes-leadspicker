@@ -45,7 +45,9 @@ describe('Leadspicker campaign create', () => {
 		assert.equal(requests.length, 1);
 		const [{ options }] = requests;
 		assert.equal(options.method, 'POST');
-		assert.equal(options.url, 'https://app.leadspicker.com/app/sb/api/lists');
+		// The path, not the host: the base URL is switched to a local backend during
+		// manual testing, and the endpoint is what this test is about.
+		assert.equal(new URL(options.url).pathname, '/app/sb/api/lists');
 		assert.deepEqual(options.body, { name: 'DACH founders', timezone: 'Europe/Prague' });
 		assert.ok(!('type' in (options.body as Record<string, unknown>)));
 	});

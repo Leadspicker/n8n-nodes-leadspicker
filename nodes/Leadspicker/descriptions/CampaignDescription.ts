@@ -90,22 +90,31 @@ export const campaignOperations: INodeProperties[] = [
 				action: 'Create a list',
 			},
 			{
-				name: 'Delete List or Sequence',
-				value: 'delete',
-				description: 'Delete a list or a sequence',
-				action: 'Delete a list or sequence',
+				name: 'Delete List',
+				value: 'deleteList',
+				description: 'Delete a list and the contacts it holds',
+				action: 'Delete a list',
 			},
 			{
-				name: 'Get List or Sequence Log',
-				value: 'getCampaignLog',
-				description: 'Retrieve timeline events for a list or a sequence',
-				action: 'Get list or sequence log',
+				// Keeps the original `delete` value: this operation already addressed
+				// `/sequences/{id}`, so a saved workflow sends the identical request and
+				// only the wording and the picker's kind change.
+				name: 'Delete Sequence',
+				value: 'delete',
+				description: 'Delete a sequence and its outreach steps',
+				action: 'Delete a sequence',
 			},
 			{
 				name: 'Get Sequence Exclusion List',
 				value: 'getExclusionList',
 				description: 'Retrieve all identifiers blacklisted for a sequence',
 				action: 'Get sequence exclusion list',
+			},
+			{
+				name: 'Get Sequence Log',
+				value: 'getCampaignLog',
+				description: 'Retrieve timeline events for a sequence',
+				action: 'Get sequence log',
 			},
 			{
 				name: 'Remove Lead From Sequence Exclusion List',
@@ -156,7 +165,46 @@ export const campaignFields: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'List or Sequence Name or ID',
+		displayName: 'List Name or ID',
+		name: 'listDeleteId',
+		type: 'options',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['deleteList'],
+			},
+		},
+		// Use a sentinel so "no filter" behaves like a selectable option.
+		// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
+		default: '',
+		typeOptions: {
+			loadOptionsMethod: 'getLists',
+		},
+		options: [
+			{ name: 'Select a list...', value: '' },
+			{ name: 'Enter List ID manually...', value: MANUAL_ID_OPTION },
+		],
+		description:
+			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+	},
+	{
+		displayName: 'List ID',
+		name: 'listDeleteIdManual',
+		type: 'number',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['deleteList'],
+				listDeleteId: [MANUAL_ID_OPTION],
+			},
+		},
+		default: 0,
+		description: 'ID of the list to delete',
+	},
+	{
+		displayName: 'Sequence Name or ID',
 		name: 'projectDeleteId',
 		type: 'options',
 		required: true,
@@ -170,17 +218,17 @@ export const campaignFields: INodeProperties[] = [
 		// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
 		default: '',
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			loadOptionsMethod: 'getSequences',
 		},
 		options: [
-			{ name: 'Select a List or Sequence...', value: '' },
-			{ name: 'Enter List or Sequence ID manually...', value: MANUAL_ID_OPTION },
+			{ name: 'Select a sequence...', value: '' },
+			{ name: 'Enter Sequence ID manually...', value: MANUAL_ID_OPTION },
 		],
 		description:
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	},
 	{
-		displayName: 'List or Sequence ID',
+		displayName: 'Sequence ID',
 		name: 'projectDeleteIdManual',
 		type: 'number',
 		required: true,
@@ -192,7 +240,7 @@ export const campaignFields: INodeProperties[] = [
 			},
 		},
 		default: 0,
-		description: 'ID of the list or sequence to delete',
+		description: 'ID of the sequence to delete',
 	},
 	{
 		displayName: 'Sequence Name or ID',
@@ -207,7 +255,7 @@ export const campaignFields: INodeProperties[] = [
 		},
 		default: '',
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			loadOptionsMethod: 'getSequences',
 		},
 		options: [
 			{ name: 'Select a sequence...', value: '' },
@@ -248,7 +296,7 @@ export const campaignFields: INodeProperties[] = [
 			'LinkedIn profile, email, domain, or company profile URL to add or remove from the exclusion list',
 	},
 	{
-		displayName: 'List or Sequence Name or ID',
+		displayName: 'Sequence Name or ID',
 		name: 'projectLogId',
 		type: 'options',
 		required: true,
@@ -260,17 +308,17 @@ export const campaignFields: INodeProperties[] = [
 		},
 		default: '',
 		typeOptions: {
-			loadOptionsMethod: 'getCampaigns',
+			loadOptionsMethod: 'getSequences',
 		},
 		options: [
-			{ name: 'Select a List or Sequence...', value: '' },
-			{ name: 'Enter List or Sequence ID manually...', value: MANUAL_ID_OPTION },
+			{ name: 'Select a sequence...', value: '' },
+			{ name: 'Enter Sequence ID manually...', value: MANUAL_ID_OPTION },
 		],
 		description:
 			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	},
 	{
-		displayName: 'List or Sequence ID',
+		displayName: 'Sequence ID',
 		name: 'projectLogIdManual',
 		type: 'number',
 		required: true,
@@ -282,7 +330,7 @@ export const campaignFields: INodeProperties[] = [
 			},
 		},
 		default: 0,
-		description: 'ID of the list or sequence to fetch timeline events from',
+		description: 'ID of the sequence to fetch timeline events from',
 	},
 	{
 		displayName: 'Person Name or ID',

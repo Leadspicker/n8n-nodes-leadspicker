@@ -91,7 +91,7 @@ export const replyFields: INodeProperties[] = [
 									{ name: 'Enter Sequence ID manually...', value: MANUAL_ID_OPTION },
 								],
 								typeOptions: {
-									loadOptionsMethod: 'getCampaigns',
+									loadOptionsMethod: 'getSequences',
 								},
 								description:
 									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
