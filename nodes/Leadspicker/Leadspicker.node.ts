@@ -221,10 +221,7 @@ export class Leadspicker implements INodeType {
 		for (const [key, value] of Object.entries(clone)) {
 			if (Array.isArray(value) || isPlainObject(value)) {
 				const normalizedValue = Leadspicker.flattenLeadPayload(value) as
-					| GenericValue
-					| IDataObject
-					| GenericValue[]
-					| IDataObject[];
+					GenericValue | IDataObject | GenericValue[] | IDataObject[];
 				clone[key] = normalizedValue;
 			}
 		}

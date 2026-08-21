@@ -45,21 +45,21 @@
 	},
 	"devDependencies": {
 		"@types/mocha": "^10.0.10",
-		"@types/node": "^24.10.1",
-		"@typescript-eslint/parser": "~8.32.0",
+		"@types/node": "^26.2.0",
+		"@typescript-eslint/parser": "^8.67.0",
 		"eslint": "^8.57.0",
-		"eslint-config-prettier": "^9.1.0",
-		"eslint-plugin-n8n-nodes-base": "^1.16.3",
-		"eslint-plugin-prettier": "^5.2.1",
-		"gulp": "^5.0.0",
-		"mocha": "^11.7.5",
-		"prettier": "^3.5.3",
-		"typescript": "^5.8.2"
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-n8n-nodes-base": "^2.0.0",
+		"eslint-plugin-prettier": "^5.5.6",
+		"gulp": "^5.0.1",
+		"mocha": "^11.8.0",
+		"n8n-workflow": "^2.16.0",
+		"prettier": "^3.9.6",
+		"typescript": "^5.9.3"
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"
 	},
-	"dependencies": {},
 	"bugs": {
 		"url": "https://github.com/Leadspicker/n8n-nodes-leadspicker/issues"
 	}
