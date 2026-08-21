@@ -13,7 +13,13 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { isPlainObject, leadspickerApiRequest } from './GenericFunctions';
+import {
+	ALL_PROJECTS_ENDPOINTS,
+	isPlainObject,
+	leadspickerApiRequest,
+	loadProjectOptions,
+	toNumericId,
+} from './GenericFunctions';
 
 const MANUAL_ID_OPTION = '__manual__';
 const WEBHOOK_PATH = 'leadspicker';
@@ -48,17 +54,6 @@ interface WebhookRecord extends IDataObject {
 	url?: string;
 	features?: Array<string | null>;
 	project_ids?: Array<number | string | null> | null;
-}
-
-function toNumericId(value: unknown): number | undefined {
-	if (typeof value === 'number' && Number.isFinite(value)) {
-		return value;
-	}
-	if (typeof value === 'string' && value.trim() !== '') {
-		const parsed = Number(value);
-		return Number.isNaN(parsed) ? undefined : parsed;
-	}
-	return undefined;
 }
 
 function getProjectIdIfSelected(context: IHookFunctions | IWebhookFunctions): number | undefined {
@@ -264,25 +259,10 @@ export class LeadspickerTrigger implements INodeType {
 
 	methods = {
 		loadOptions: {
+			// The webhook event filter spans both kinds, so both listings are merged —
+			// the all-kinds listing this used to call is deprecated.
 			async getCampaigns(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const query: IDataObject = { limit: 50 };
-				const response = await leadspickerApiRequest.call(this, 'GET', '/projects', {}, query);
-				const list = Array.isArray(response)
-					? (response as IDataObject[])
-					: Array.isArray((response as IDataObject)?.results)
-						? ((response as IDataObject).results as IDataObject[])
-						: [];
-				const options: INodePropertyOptions[] = [];
-				for (const campaign of list) {
-					const id = toNumericId(campaign?.id as NodeParameterValueType);
-					if (id === undefined) continue;
-					const name =
-						typeof campaign?.name === 'string' && campaign.name.trim() !== ''
-							? campaign.name.trim()
-							: `Campaign #${id}`;
-					options.push({ name, value: id.toString() });
-				}
-				return options;
+				return loadProjectOptions(this, ALL_PROJECTS_ENDPOINTS);
 			},
 		},
 	};
