@@ -99,6 +99,24 @@ This node has been developed and tested against n8n version 1.0.0. It may work w
 
 ## **Changelog**
 
+### 0.6.0
+
+* Added **Get Many Lists** and **Get Many Sequences** operations under the List or Sequence resource, returning projects as workflow data with an optional name search, a `Return All` toggle, and a `Simplify` toggle that switches between the id/name projection and the full payload with stats and settings.
+* The credential's **Domain** field now drives every API request, not just the credential test, so a workflow can run against a local or staging backend. A missing scheme is added and a pasted `/app/sb/api` suffix is dropped; leaving it empty keeps the production host.
+* Fixed the n8n review violations from 0.5.1: the trigger node gained a `subtitle`, raw errors are wrapped in `NodeApiError`/`NodeOperationError` so failures surface consistently in the UI, the Leadspicker node declares `usableAsTool` for AI agent workflows, and both nodes and the credential ship light and dark icon variants.
+
+### 0.5.1
+
+* Added npm provenance to the publishing workflow.
+
+### 0.5.0
+
+* Moved every project call onto the `/lists` and `/sequences` prefixes, following the backend's split of the deprecated `/projects` namespace. Renamed the Campaign resource to **List or Sequence**, and split the delete operation into **Delete List** and **Delete Sequence** so each addresses its own kind. Stored resource, operation and parameter values are unchanged, so workflows saved against earlier versions keep working.
+
+### 0.4.4
+
+* Removed Leadspicker runtime logging.
+
 ### 0.4.3
 
 * Replaced global timer usage with n8n workflow sleep helper to satisfy community-node linting.

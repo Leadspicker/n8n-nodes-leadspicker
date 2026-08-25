@@ -25,6 +25,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
+      # The scan n8n runs on a published package lints the whole repo, not just the
+      # source directories `npm run lint` targets. A violation only this scope catches
+      # is what failed the 0.5.1 submission review.
+      - name: Lint whole repo
+        run: npx eslint .
+
+      # Mirrors the stricter ruleset `prepublishOnly` applies, which this workflow
+      # bypasses by publishing from CI rather than from a local `npm publish`.
+      - name: Lint with prepublish rules
+        run: npx eslint -c .eslintrc.prepublish.js nodes credentials package.json
+
       - name: Test
         run: npm test
 
