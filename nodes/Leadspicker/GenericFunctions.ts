@@ -1,6 +1,8 @@
-import { sleep } from 'n8n-workflow';
+import { NodeApiError, NodeOperationError, sleep } from 'n8n-workflow';
 import { version as packageVersion } from '../../package.json';
 import type {
+	INode,
+	JsonObject,
 	IExecuteFunctions,
 	IHookFunctions,
 	IDataObject,
@@ -47,6 +49,58 @@ function getStatusCode(error: unknown) {
 	return undefined;
 }
 
+interface INodeContext {
+	getNode(): INode;
+}
+
+/**
+ * n8n surfaces errors consistently only when they are NodeApiError/NodeOperationError,
+ * so raw errors coming out of HTTP helpers are wrapped before they leave a node.
+ */
+export function toNodeError(
+	context: INodeContext,
+	error: unknown,
+	itemIndex?: number,
+): NodeApiError | NodeOperationError {
+	if (error instanceof NodeApiError || error instanceof NodeOperationError) {
+		return error;
+	}
+	const options = itemIndex === undefined ? {} : { itemIndex };
+	const isHttpError =
+		typeof error === 'object' &&
+		error !== null &&
+		('httpCode' in error || 'statusCode' in error || 'response' in error);
+	if (isHttpError) {
+		return new NodeApiError(context.getNode(), error as JsonObject, options);
+	}
+	return new NodeOperationError(context.getNode(), error as Error, options);
+}
+
+export const DEFAULT_DOMAIN = 'https://app.leadspicker.com';
+
+/**
+ * The credential's Domain field points the node at a non-production backend
+ * (a local dev server, a staging host). Trailing slashes are trimmed so the
+ * endpoint paths always join cleanly.
+ */
+function normalizeDomain(value: unknown): string {
+	if (typeof value !== 'string') {
+		return DEFAULT_DOMAIN;
+	}
+	let trimmed = value.trim().replace(/\/+$/, '');
+	if (trimmed === '') {
+		return DEFAULT_DOMAIN;
+	}
+	// The field holds an origin, but the docs URL ends in the API prefix, so pasting it
+	// is an easy mistake — and it would double the prefix on every request.
+	trimmed = trimmed.replace(/\/app\/sb\/api$/, '');
+	// A bare host resolves to a relative URL, which the HTTP helper rejects outright.
+	if (!/^https?:\/\//i.test(trimmed)) {
+		trimmed = `https://${trimmed}`;
+	}
+	return trimmed;
+}
+
 export async function leadspickerApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions | IWebhookFunctions,
 	method: IHttpRequestMethods,
@@ -54,12 +108,12 @@ export async function leadspickerApiRequest(
 	body: IDataObject = {},
 	query: IDataObject = {},
 ) {
+	const credentials = await this.getCredentials('leadspickerApi');
+	const domain = normalizeDomain(credentials.domain);
 	const options: IHttpRequestOptions = {
 		headers: { 'User-Agent': USER_AGENT },
 		method,
-		url: `https://app.leadspicker.com/app/sb/api${endpoint}`,
-		//url: `http://localhost:8000/app/sb/api${endpoint}`,
-		//url: `http://host.docker.internal:8000/app/sb/api${endpoint}`,
+		url: `${domain}/app/sb/api${endpoint}`,
 		body,
 		json: true,
 		qs: query,
@@ -86,11 +140,14 @@ export async function leadspickerApiRequest(
 				await sleep(RETRY_DELAY_MS);
 				continue;
 			}
-			throw error;
+			throw toNodeError(this, error);
 		}
 	}
 
-	throw new Error('Exceeded retry attempts after repeated rate limit responses.');
+	throw new NodeOperationError(
+		this.getNode(),
+		'Exceeded retry attempts after repeated rate limit responses.',
+	);
 }
 
 // Helper function to get user's timezone with fallback
@@ -127,6 +184,10 @@ export function isPlainObject(value: unknown): value is IDataObject {
 export const LISTS_SIMPLE_ENDPOINT = '/lists/simple';
 /** Listing that backs a sequence picker. Same shape as `LISTS_SIMPLE_ENDPOINT`. */
 export const SEQUENCES_SIMPLE_ENDPOINT = '/sequences/simple';
+/** Rich listing: every project field, ordered by id descending rather than by creation. */
+export const LISTS_ENDPOINT = '/lists';
+/** Rich sequence listing. Same shape and ordering as `LISTS_ENDPOINT`. */
+export const SEQUENCES_ENDPOINT = '/sequences';
 /** Both kinds, for pickers that accept either. There is no all-kinds endpoint left. */
 export const ALL_PROJECTS_ENDPOINTS = [LISTS_SIMPLE_ENDPOINT, SEQUENCES_SIMPLE_ENDPOINT];
 

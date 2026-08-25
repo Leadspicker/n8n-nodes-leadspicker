@@ -32,6 +32,9 @@ function createContext(
 			}
 			return params[name];
 		},
+		async getCredentials() {
+			return { token: 'test-token', domain: 'https://app.leadspicker.com' };
+		},
 		getNode() {
 			return { name: 'Leadspicker Test Node' } as any;
 		},
@@ -143,6 +146,73 @@ describe('Project kind endpoints', () => {
 			assert.equal(requests.length, 1);
 			assert.equal(path(requests[0].url), '/sequences/9/events');
 			assert.ok(requests[0].url.includes('?'), 'expected a query string on the events call');
+		});
+	});
+
+	describe('the listing operations address the kind route and cannot paginate', () => {
+		const base = { returnAll: false, limit: 50, simplify: true, projectSearchQuery: '' };
+
+		it('lists and sequences each read their own simple listing', async () => {
+			for (const [operation, expected] of [
+				['getLists', '/lists/simple'],
+				['getSequences', '/sequences/simple'],
+			] as const) {
+				const requests: RecordedRequest[] = [];
+				const context = createContext({ ...base, operation }, requests);
+
+				await (Leadspicker as any).handleCampaignOperations(context, 0);
+
+				assert.equal(requests.length, 1);
+				assert.equal(requests[0].method, 'GET');
+				assert.equal(path(requests[0].url), expected);
+			}
+		});
+
+		it('drops the simple projection for the rich listing', async () => {
+			const requests: RecordedRequest[] = [];
+			const context = createContext(
+				{ ...base, operation: 'getSequences', simplify: false },
+				requests,
+			);
+
+			await (Leadspicker as any).handleCampaignOperations(context, 0);
+
+			assert.equal(path(requests[0].url), '/sequences');
+		});
+
+		it('sends the limit only when not returning all', async () => {
+			const capped: RecordedRequest[] = [];
+			await (Leadspicker as any).handleCampaignOperations(
+				createContext({ ...base, operation: 'getLists', limit: 5 }, capped),
+				0,
+			);
+			assert.deepEqual(capped[0].qs, { limit: 5 });
+
+			// The backend slices with `qs[:limit]` and ignores offset/page, so every
+			// result is fetched by omitting the limit rather than by walking pages.
+			const all: RecordedRequest[] = [];
+			await (Leadspicker as any).handleCampaignOperations(
+				createContext({ ...base, operation: 'getLists', returnAll: true }, all),
+				0,
+			);
+			assert.equal(all.length, 1, 'return-all must not paginate');
+			assert.deepEqual(all[0].qs, {});
+		});
+
+		it('forwards a trimmed search query and omits an empty one', async () => {
+			const searched: RecordedRequest[] = [];
+			await (Leadspicker as any).handleCampaignOperations(
+				createContext({ ...base, operation: 'getLists', projectSearchQuery: '  acme  ' }, searched),
+				0,
+			);
+			assert.deepEqual(searched[0].qs, { limit: 50, search_query: 'acme' });
+
+			const blank: RecordedRequest[] = [];
+			await (Leadspicker as any).handleCampaignOperations(
+				createContext({ ...base, operation: 'getLists', projectSearchQuery: '   ' }, blank),
+				0,
+			);
+			assert.deepEqual(blank[0].qs, { limit: 50 });
 		});
 	});
 

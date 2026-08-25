@@ -18,6 +18,7 @@ import {
 	isPlainObject,
 	leadspickerApiRequest,
 	loadProjectOptions,
+	toNodeError,
 	toNumericId,
 } from './GenericFunctions';
 
@@ -181,9 +182,14 @@ export class LeadspickerTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Leadspicker Trigger',
 		name: 'leadspickerTrigger',
-		icon: 'file:logo_leadspicker.svg',
+		icon: {
+			light: 'file:logo_leadspicker-light.svg',
+			dark: 'file:logo_leadspicker-dark.svg',
+		},
 		group: ['trigger'],
 		version: 1,
+		subtitle:
+			'={{"Event: " + ({ account_revoked: "Account Revoked", email_bounced: "Email Bounced", email_reply: "Email Reply", email_sent: "Email Sent", linkedin_reply: "LinkedIn Reply", linkedin_sent: "LinkedIn Sent", person_added: "Lead Added" }[$parameter["feature"]] || "Select an Event")}}',
 		description: 'Receive Leadspicker webhook events for multiple features',
 		defaults: {
 			name: 'Leadspicker Trigger',
@@ -347,7 +353,7 @@ export class LeadspickerTrigger implements INodeType {
 							? (error as { httpCode?: unknown }).httpCode
 							: undefined;
 					if (httpCode !== '404') {
-						throw error;
+						throw toNodeError(this, error);
 					}
 				}
 				delete staticData.webhookId;
