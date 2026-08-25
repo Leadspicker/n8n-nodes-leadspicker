@@ -16,11 +16,14 @@ import type {
 
 import {
 	ALL_PROJECTS_ENDPOINTS,
+	LISTS_ENDPOINT,
 	LISTS_SIMPLE_ENDPOINT,
+	SEQUENCES_ENDPOINT,
 	SEQUENCES_SIMPLE_ENDPOINT,
 	isPlainObject,
 	leadspickerApiRequest,
 	loadProjectOptions,
+	toNodeError,
 	toNumericId,
 } from './GenericFunctions';
 import {
@@ -399,12 +402,16 @@ export class Leadspicker implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Leadspicker',
 		name: 'leadspicker',
-		icon: 'file:logo_leadspicker.svg',
+		icon: {
+			light: 'file:logo_leadspicker-light.svg',
+			dark: 'file:logo_leadspicker-dark.svg',
+		},
 		group: ['transform'],
 		version: 1,
 		subtitle:
 			'={{( { person: "Lead", project: "List or Sequence", reply: "Reply", linkedinActivity: "Linkedin", globalExclusionList: "Global Exclusion List", outreach: "Outreach", account: "Account" }[$parameter["resource"]] ?? $parameter["resource"]) + ": " + $parameter["operation"]}}',
 		description: 'Interact with Leadspicker API',
+		usableAsTool: true,
 		defaults: {
 			name: 'Leadspicker',
 		},
@@ -728,6 +735,36 @@ export class Leadspicker implements INodeType {
 				// this uses the list route rather than the deprecated create-a-sequence one.
 				return leadspickerApiRequest.call(context, 'POST', '/lists', body);
 			}
+			case 'getLists':
+			case 'getSequences': {
+				// The kind is pinned by the route. `simple` trims the payload to
+				// id/name/type/created/user and orders newest-first by creation; the rich
+				// listing carries stats and settings and orders by id.
+				const simplify = context.getNodeParameter('simplify', i) as boolean;
+				const endpoint =
+					operation === 'getLists'
+						? simplify
+							? LISTS_SIMPLE_ENDPOINT
+							: LISTS_ENDPOINT
+						: simplify
+							? SEQUENCES_SIMPLE_ENDPOINT
+							: SEQUENCES_ENDPOINT;
+
+				const qs: IDataObject = {};
+				// Neither listing paginates: the backend applies `limit` as a slice bound and
+				// ignores offset/page, so every result is fetched by omitting the limit.
+				const returnAll = context.getNodeParameter('returnAll', i) as boolean;
+				if (!returnAll) {
+					qs.limit = context.getNodeParameter('limit', i) as number;
+				}
+				const rawSearchQuery = context.getNodeParameter('projectSearchQuery', i, '');
+				const searchQuery = typeof rawSearchQuery === 'string' ? rawSearchQuery.trim() : '';
+				if (searchQuery !== '') {
+					qs.search_query = searchQuery;
+				}
+
+				return leadspickerApiRequest.call(context, 'GET', endpoint, {}, qs);
+			}
 			case 'deleteList': {
 				const listId = Leadspicker.getIdFromOptionOrManual(
 					context,
@@ -847,7 +884,7 @@ export class Leadspicker implements INodeType {
 							},
 						];
 					}
-					throw error;
+					throw toNodeError(context, error, i);
 				}
 			}
 			case 'getCampaignLog': {
@@ -1479,7 +1516,7 @@ export class Leadspicker implements INodeType {
 					returnData.push(...executionData);
 					continue;
 				}
-				throw error;
+				throw toNodeError(this, error, i);
 			}
 		}
 

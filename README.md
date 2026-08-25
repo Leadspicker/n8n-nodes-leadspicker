@@ -29,22 +29,25 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 This node supports the following resources and operations:
 
 * **Lead**
-  * Create a new lead in a campaign
+  * Create a new lead in a list
   * Delete a lead
   * Get a lead by ID
-  * List leads in a campaign
+  * List leads in a list
   * Update an existing lead
   * Find leads by a company's LinkedIn URL
   * Find leads by a company's name
-* **Campaign**
-  * Create a new campaign
-  * Delete a campaign
-  * Get the campaign log (timeline events with optional search, date, person, and type filters)
-  * Add a lead to the campaign exclusion list
-  * Remove a lead from the campaign exclusion list
-  * Get the campaign exclusion list
+* **List or Sequence**
+  * Get many lists (with optional name search; returns all or up to a limit)
+  * Get many sequences (with optional name search; returns all or up to a limit)
+  * Create a new list
+  * Delete a list
+  * Delete a sequence
+  * Get the sequence log (timeline events with optional search, date, person, and type filters)
+  * Add a lead to the sequence exclusion list
+  * Remove a lead from the sequence exclusion list
+  * Get the sequence exclusion list
 * **Reply**
-  * Get replies based on filters (email accounts, campaigns, sentiment)
+  * Get replies based on filters (email accounts, lists or sequences, sentiment)
 * **Linkedin Activity**
   * Get a LinkedIn profile's details
   * Get a profile's latest posts
@@ -66,7 +69,7 @@ Note: The Linkedin Activity operations "Search Post Reactors" and "Profiles Post
 
 ## **Triggers**
 
-The Leadspicker Trigger node lets you subscribe to webhook events across all projects or filter down to a single campaign and fire workflows from these Leadspicker events:
+The Leadspicker Trigger node lets you subscribe to webhook events across all projects or filter down to a single list or sequence and fire workflows from these Leadspicker events:
 
 * Account revoked (connected account access revoked)
 * Email bounced

@@ -19,6 +19,9 @@ function createTestContext(params: ParamMap, requests: RecordedRequest[]): IExec
 			}
 			return params[name];
 		},
+		async getCredentials() {
+			return { token: 'test-token', domain: 'https://app.leadspicker.com' };
+		},
 		getNode() {
 			return { name: 'Leadspicker Test Node' } as any;
 		},

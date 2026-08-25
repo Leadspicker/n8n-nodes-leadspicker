@@ -8,7 +8,10 @@ import {
 export class LeadspickerApi implements ICredentialType {
 	name = 'leadspickerApi';
 	displayName = 'Leadspicker API';
-	icon: ICredentialType['icon'] = 'file:../nodes/Leadspicker/logo_leadspicker.svg';
+	icon: ICredentialType['icon'] = {
+		light: 'file:../nodes/Leadspicker/logo_leadspicker-light.svg',
+		dark: 'file:../nodes/Leadspicker/logo_leadspicker-dark.svg',
+	};
 	documentationUrl = 'https://app.leadspicker.com/app/sb/api/docs';
 	properties: INodeProperties[] = [
 		{
@@ -25,7 +28,8 @@ export class LeadspickerApi implements ICredentialType {
 			name: 'domain',
 			type: 'string',
 			default: 'https://app.leadspicker.com',
-			//default: 'http://localhost:8000',
+			description:
+				'Base URL of the Leadspicker backend. Point it at a local or staging server to develop against a non-production backend.',
 		},
 	];
 

@@ -105,6 +105,18 @@ export const campaignOperations: INodeProperties[] = [
 				action: 'Delete a sequence',
 			},
 			{
+				name: 'Get Many Lists',
+				value: 'getLists',
+				description: 'Retrieve the lists the account owns, newest first',
+				action: 'Get many lists',
+			},
+			{
+				name: 'Get Many Sequences',
+				value: 'getSequences',
+				description: 'Retrieve the sequences the account owns, newest first',
+				action: 'Get many sequences',
+			},
+			{
 				name: 'Get Sequence Exclusion List',
 				value: 'getExclusionList',
 				description: 'Retrieve all identifiers blacklisted for a sequence',
@@ -434,5 +446,64 @@ export const campaignFields: INodeProperties[] = [
 		},
 		default: [],
 		description: 'Limit results to specific outreach steps',
+	},
+
+	// Both listings share these. The backend slices with `qs[:limit]` and accepts no
+	// offset or cursor, so "return all" is simply the request with no limit at all.
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean',
+		default: false,
+		description: 'Whether to return all results or only up to a given limit',
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['getLists', 'getSequences'],
+			},
+		},
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		default: 50,
+		typeOptions: {
+			minValue: 1,
+		},
+		description: 'Max number of results to return',
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['getLists', 'getSequences'],
+				returnAll: [false],
+			},
+		},
+	},
+	{
+		displayName: 'Simplify',
+		name: 'simplify',
+		type: 'boolean',
+		default: true,
+		description: 'Whether to return a simplified version of the response instead of the raw data',
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['getLists', 'getSequences'],
+			},
+		},
+	},
+	{
+		displayName: 'Search Query',
+		name: 'projectSearchQuery',
+		type: 'string',
+		default: '',
+		description: 'Return only projects whose name contains this text',
+		displayOptions: {
+			show: {
+				resource: ['project'],
+				operation: ['getLists', 'getSequences'],
+			},
+		},
 	},
 ];

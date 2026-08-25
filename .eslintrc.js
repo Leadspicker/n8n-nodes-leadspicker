@@ -22,7 +22,7 @@ module.exports = {
 		extraFileExtensions: ['.json'],
 	},
 
-	ignorePatterns: ['.eslintrc.js', '**/node_modules/**', '**/dist/**'],
+	ignorePatterns: ['**/*.js', '**/node_modules/**', '**/dist/**'],
 
 	overrides: [
 		{
