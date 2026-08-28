@@ -99,6 +99,11 @@ This node has been developed and tested against n8n version 1.0.0. It may work w
 
 ## **Changelog**
 
+### 0.6.1
+
+* Node and credential icons now use the official brand mark. The hand-approximated 88x99 path is replaced by the 226x251 one from the brand page, the light-theme icon is brand black `#060606`, and the dark-theme icon is white; it previously used `#7B9BFF`, which is not a brand color.
+* Restored `nodes/Leadspicker/logo_leadspicker.svg`. The n8n creator portal requests that exact path for the package listing's icon, and the 0.6.0 rename to `-light`/`-dark` variants left it returning 404.
+
 ### 0.6.0
 
 * Added **Get Many Lists** and **Get Many Sequences** operations under the List or Sequence resource, returning projects as workflow data with an optional name search, a `Return All` toggle, and a `Simplify` toggle that switches between the id/name projection and the full payload with stats and settings.
